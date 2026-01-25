@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+dist-ssr/
+
+# local env files
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+*.log
+
+# misc
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# coverage
+coverage/
+
+# vite cache
+.vite/
+
+# OS
+Thumbs.db
