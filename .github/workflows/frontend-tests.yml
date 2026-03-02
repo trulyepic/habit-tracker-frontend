@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.54.2
+
       - name: Build app
         run: npm run build
 
