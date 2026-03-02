@@ -3,6 +3,7 @@ import { BarChart3, CheckCircle2, Flame, ListChecks, Snowflake } from "lucide-re
 import { PlayerBar } from "./PlayerBar";
 import TitleBanner from "./TitleBanner";
 import AchievementsScreen from "./AchievementsScreen";
+import ActivityFeed from "./ActivityFeed";
 import { coerceUnlockedMap } from "../gamification/achievements";
 
 function StatCard({ icon: Icon, label, value, tint }) {
@@ -19,7 +20,17 @@ function StatCard({ icon: Icon, label, value, tint }) {
   );
 }
 
-export default function ProfileScreen({ habits, player, playerProfile, titleState }) {
+export default function ProfileScreen({
+  habits,
+  player,
+  playerProfile,
+  titleState,
+  recentActivity = [],
+  recentActivityLoading = false,
+  recentActivityHasMore = false,
+  onLoadMoreActivity,
+  onCollapseActivity,
+}) {
   const source = playerProfile ?? player;
 
   // Keep profile metrics in one memo so all cards render from same snapshot.
@@ -58,6 +69,14 @@ export default function ProfileScreen({ habits, player, playerProfile, titleStat
         level={player.level}
         achievementsUnlocked={source?.achievementsUnlocked}
         titleState={titleState}
+      />
+
+      <ActivityFeed
+        items={recentActivity}
+        loading={recentActivityLoading}
+        hasMore={recentActivityHasMore}
+        onLoadMore={onLoadMoreActivity}
+        onCollapse={onCollapseActivity}
       />
 
       <AchievementsScreen habits={habits} playerProfile={source} />
