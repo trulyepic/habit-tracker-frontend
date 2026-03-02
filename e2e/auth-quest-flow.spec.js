@@ -143,6 +143,8 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
                 rewardXp: 50,
                 rewardClaimed: false,
                 rewardClaimable: false,
+                rewardClaimedAt: null,
+                rewardAwardedXp: 0,
                 quests: [],
               },
             },
@@ -270,6 +272,8 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await page.getByRole("link", { name: "Login" }).click();
   await expect(page.getByText("Logged in as")).toBeVisible();
   await expect(page.getByText("e2e_user")).toBeVisible();
+  await page.getByRole("button", { name: "Claim Center" }).click();
+  await expect(page.getByText("Complete all daily objectives to unlock this reward.")).toBeVisible();
 
   await page.getByRole("button", { name: "Create" }).click();
   await page.getByPlaceholder("Habit name (unique)").fill("E2E Quest");

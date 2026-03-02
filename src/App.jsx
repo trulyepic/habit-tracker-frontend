@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useEffect, useMemo, useState } from "react";
-import { Compass, Flame, ShieldCheck, Snowflake, Sparkles, Swords } from "lucide-react";
+import { Compass, Flame, ShieldCheck, Snowflake, Sparkles, Swords, Volume2, VolumeX } from "lucide-react";
 
 import AuthBar from "./components/AuthBar";
 import HabitCard from "./components/HabitCard";
@@ -10,6 +10,7 @@ import { useGuestHabits } from "./hooks/useGuestHabits";
 
 import { API_BASE } from "./lib/config";
 import { guestApplyCheckin, guestNewHabit } from "./lib/guestHabitUtils";
+import { playSoundCue, primeSoundCues } from "./lib/soundCues";
 
 import {
   CLAIM_DAILY_QUEST_REWARD,
@@ -27,13 +28,18 @@ import { HABIT_FIELDS } from "./graphql/fragments";
 import { useGamification } from "./gamification/useGamification";
 import RewardToast from "./components/RewardToast";
 import AchievementToast from "./components/AchievementToast";
-import TopTabs from "./components/TopTabs";
+import MiniMapNav from "./components/MiniMapNav";
 import QuestPanelTabs from "./components/QuestPanelTabs";
 import ProfileScreen from "./components/ProfileScreen";
 import DailyQuestChain from "./components/DailyQuestChain";
 import ClaimCenter from "./components/ClaimCenter";
+import XpOrb from "./components/XpOrb";
+import LevelUpScene from "./components/LevelUpScene";
+import StreakComboMeter from "./components/StreakComboMeter";
+import RewardChestReveal from "./components/RewardChestReveal";
 import { coerceUnlockedMap } from "./gamification/achievements";
 import { resolveTitleState, resolveTitleStateFromServerProfile } from "./gamification/titles";
+import { getUnlockedSkins, resolveSkin } from "./gamification/skins";
 
 const STARTER_QUESTS = [
   { name: "Morning Mobility", description: "10 minutes of stretching right after waking up." },
@@ -145,6 +151,13 @@ export default function App() {
   const [sortMode, setSortMode] = useState("next-up");
   const [claimCenterOpen, setClaimCenterOpen] = useState(false);
   const [claimHistory, setClaimHistory] = useState([]);
+  const [dailyClaimFeedback, setDailyClaimFeedback] = useState("");
+  const [chestReveal, setChestReveal] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("habit-tracker:sound-enabled") !== "false";
+  });
+  const [selectedSkinKey, setSelectedSkinKey] = useState("classic");
   const [seenAchievementKeys, setSeenAchievementKeys] = useState([]);
   const [deactivateHint, setDeactivateHint] = useState("");
 
@@ -182,13 +195,19 @@ export default function App() {
 
   const freezeCharges = me?.playerProfile?.streakFreezeCharges ?? 0;
   const recoveryQuest = me?.playerProfile?.recoveryQuest ?? null;
+  const dailyQuestChain = dailyQuestData?.dailyQuestChain ?? null;
   const recentActivity = recentActivityData?.recentActivity ?? [];
   const recentActivityHasMore = recentActivity.length >= activityLimit;
   const unlockedAchievementsMap = coerceUnlockedMap(me?.playerProfile?.achievementsUnlocked);
   const unlockedAchievementKeys = Object.keys(unlockedAchievementsMap);
   const unseenAchievementKeys = unlockedAchievementKeys.filter((k) => !seenAchievementKeys.includes(k));
+  const skinUnlockSource = isAuthed ? me?.playerProfile?.achievementsUnlocked : player?.achievementsUnlocked;
+  const unlockedSkins = useMemo(() => getUnlockedSkins(skinUnlockSource), [skinUnlockSource]);
+  const unlockedSkinKeys = useMemo(() => unlockedSkins.map((s) => s.key), [unlockedSkins]);
+  const selectedSkin = useMemo(() => resolveSkin(selectedSkinKey), [selectedSkinKey]);
+  const skinStorageKey = `habit-tracker:skin:${isAuthed && me?.id ? me.id : "guest"}`;
   const claimableCount =
-    Number(Boolean(dailyQuestData?.dailyQuestChain?.rewardClaimable)) +
+    Number(Boolean(dailyQuestChain?.rewardClaimable)) +
     Number(Boolean(recoveryQuest?.claimable)) +
     unseenAchievementKeys.length;
 
@@ -208,6 +227,64 @@ export default function App() {
       achievementsUnlockedRaw: player?.achievementsUnlocked,
     });
   }, [isAuthed, me?.playerProfile, player.level, player?.achievementsUnlocked]);
+
+  const formatClaimedAt = (raw) => {
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
+  const dailyClaimStatusText = useMemo(() => {
+    if (!dailyQuestChain) return dailyClaimFeedback || "";
+    if (dailyClaimFeedback) return dailyClaimFeedback;
+    if (dailyQuestChain.rewardClaimed) {
+      const claimedAtLabel = formatClaimedAt(dailyQuestChain.rewardClaimedAt);
+      return claimedAtLabel
+        ? `Already claimed today at ${claimedAtLabel}.`
+        : "Already claimed today.";
+    }
+    if (dailyQuestChain.rewardClaimable) {
+      return `Ready to claim +${dailyQuestChain.rewardXp} XP.`;
+    }
+    return "Complete all daily objectives to unlock this reward.";
+  }, [
+    dailyQuestChain?.rewardClaimed,
+    dailyQuestChain?.rewardClaimable,
+    dailyQuestChain?.rewardClaimedAt,
+    dailyQuestChain?.rewardXp,
+    dailyClaimFeedback,
+  ]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(skinStorageKey);
+    const fallback = unlockedSkinKeys.includes("classic") ? "classic" : unlockedSkinKeys[0] ?? "classic";
+    const next = saved && unlockedSkinKeys.includes(saved) ? saved : fallback;
+    setSelectedSkinKey(next);
+  }, [skinStorageKey, unlockedSkinKeys.join("|")]);
+
+  useEffect(() => {
+    localStorage.setItem(skinStorageKey, selectedSkinKey);
+  }, [skinStorageKey, selectedSkinKey]);
+
+  useEffect(() => {
+    localStorage.setItem("habit-tracker:sound-enabled", soundEnabled ? "true" : "false");
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    if (!soundEnabled) return;
+    const onFirstInteract = () => {
+      primeSoundCues();
+      window.removeEventListener("pointerdown", onFirstInteract);
+      window.removeEventListener("keydown", onFirstInteract);
+    };
+    window.addEventListener("pointerdown", onFirstInteract);
+    window.addEventListener("keydown", onFirstInteract);
+    return () => {
+      window.removeEventListener("pointerdown", onFirstInteract);
+      window.removeEventListener("keydown", onFirstInteract);
+    };
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (!isAuthed || !me?.id) return;
@@ -284,6 +361,7 @@ export default function App() {
           totalCheckins: h.totalCheckins,
         })),
       });
+      if (soundEnabled) playSoundCue("checkin");
       return;
     }
 
@@ -295,11 +373,13 @@ export default function App() {
     const nextLevel = payload?.profile?.level ?? player.level;
 
     if (payload?.created && typeof awardedXp === "number") {
+      if (soundEnabled) playSoundCue("checkin");
       pushReward({
         breakdown: { base: awardedXp, streakBonus: 0, minutesBonus: 0, total: awardedXp },
         leveledUp: nextLevel > player.level,
         nextLevel,
       });
+      if (soundEnabled && nextLevel > player.level) playSoundCue("level_up");
     }
 
     if (payload?.created) {
@@ -336,13 +416,31 @@ export default function App() {
     if (!payload) return;
 
     if (payload.claimed && payload.awardedXp > 0) {
+      if (soundEnabled) playSoundCue("claim");
       pushClaimHistory("Daily Quest Reward", `+${payload.awardedXp} XP`);
       pushReward({
         breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
         leveledUp: (payload.profile?.level ?? player.level) > player.level,
         nextLevel: payload.profile?.level ?? player.level,
       });
+      if (soundEnabled && (payload.profile?.level ?? player.level) > player.level) {
+        playSoundCue("level_up");
+      }
       await refetchMe();
+      setDailyClaimFeedback("Daily reward claimed.");
+      setChestReveal({
+        title: "Daily Quest Chest",
+        subtitle: "Boss reward secured.",
+        xp: payload.awardedXp,
+        bonusText: "Your chain reward has been added to progression.",
+      });
+    } else if (payload.claimReason === "already_claimed") {
+      const claimedAtLabel = formatClaimedAt(payload.chain?.rewardClaimedAt);
+      setDailyClaimFeedback(
+        claimedAtLabel ? `Already claimed today at ${claimedAtLabel}.` : "Already claimed today."
+      );
+    } else if (payload.claimReason === "incomplete") {
+      setDailyClaimFeedback("Daily chain incomplete. Finish all objectives first.");
     }
 
     await refetchDailyQuest();
@@ -369,11 +467,21 @@ export default function App() {
     const res = await claimRecoveryQuestReward();
     const payload = res?.data?.claimRecoveryQuestReward;
     if (payload?.claimed && payload.awardedXp > 0) {
+      if (soundEnabled) playSoundCue("claim");
       pushClaimHistory("Recovery Reward", `+${payload.awardedXp} XP`);
       pushReward({
         breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
         leveledUp: (payload.profile?.level ?? player.level) > player.level,
         nextLevel: payload.profile?.level ?? player.level,
+      });
+      if (soundEnabled && (payload.profile?.level ?? player.level) > player.level) {
+        playSoundCue("level_up");
+      }
+      setChestReveal({
+        title: "Recovery Chest",
+        subtitle: "Comeback mission complete.",
+        xp: payload.awardedXp,
+        bonusText: "+1 freeze charge also awarded.",
       });
     }
     await Promise.all([refetchMe(), refetchHabits(), refetchDailyQuest()]);
@@ -470,11 +578,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-sky-50/30">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50/40">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="ambient-orb-1 absolute -left-24 top-16 h-80 w-80 rounded-full bg-cyan-300/40 blur-3xl" />
+        <div className="ambient-orb-2 absolute right-[-8rem] top-28 h-[24rem] w-[24rem] rounded-full bg-fuchsia-300/35 blur-3xl" />
+        <div className="ambient-orb-1 absolute left-1/3 top-[30rem] h-72 w-72 rounded-full bg-amber-300/28 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-100/18 via-transparent to-fuchsia-100/20" />
+        <div className="absolute inset-0 opacity-[0.26] [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.10)_1px,transparent_0)] [background-size:24px_24px]" />
+      </div>
       <RewardToast reward={lastReward} onClose={clearLastReward} />
       <AchievementToast unlocks={lastUnlocks} onClose={clearLastUnlocks} />
+      <LevelUpScene reward={lastReward} onClose={clearLastReward} />
+      <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />
 
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="relative z-10 mx-auto max-w-4xl px-4 py-10">
         <div className="motion-fade-slide mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -493,10 +610,26 @@ export default function App() {
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Title: {titleState.current.name}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !soundEnabled;
+                    setSoundEnabled(next);
+                    if (next) primeSoundCues();
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 font-semibold text-white hover:bg-white/15"
+                  title={soundEnabled ? "Disable sound cues" : "Enable sound cues"}
+                >
+                  {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                  Sound {soundEnabled ? "On" : "Off"}
+                </button>
               </div>
             </div>
-            <div className="hidden h-12 w-12 items-center justify-center rounded-xl bg-white/10 sm:flex">
-              <Swords className="h-6 w-6 text-amber-300" />
+            <div className="hidden items-center gap-3 sm:flex">
+              <XpOrb level={player.level} totalXp={player.totalXp} reward={lastReward} />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
+                <Swords className="h-6 w-6 text-amber-300" />
+              </div>
             </div>
           </div>
         </div>
@@ -505,25 +638,6 @@ export default function App() {
           <AuthBar isAuthed={isAuthed} me={me} onLogout={onLogout} />
 
           <div className="flex flex-wrap items-center gap-2">
-            {isAuthed && (
-              <ClaimCenter
-                claimableCount={claimableCount}
-                isOpen={claimCenterOpen}
-                onToggle={() => setClaimCenterOpen((v) => !v)}
-                dailyClaimable={Boolean(dailyQuestData?.dailyQuestChain?.rewardClaimable)}
-                dailyRewardXp={dailyQuestData?.dailyQuestChain?.rewardXp ?? 0}
-                onClaimDaily={onClaimDailyReward}
-                claimingDaily={claimingDailyReward}
-                recoveryClaimable={Boolean(recoveryQuest?.claimable)}
-                recoveryRewardXp={recoveryQuest?.rewardXp ?? 0}
-                onClaimRecovery={onClaimRecovery}
-                claimingRecovery={claimingRecovery}
-                newAchievementsCount={unseenAchievementKeys.length}
-                onAcknowledgeAchievements={onAcknowledgeAchievements}
-                history={claimHistory}
-              />
-            )}
-
             {isAuthed && guestHabits.length > 0 && (
               <button
                 onClick={onImportGuestHabits}
@@ -549,7 +663,19 @@ export default function App() {
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TopTabs active={view} onChange={setView} />
+          <MiniMapNav
+            activeView={view}
+            claimPanelOpen={claimCenterOpen}
+            claimableCount={claimableCount}
+            onSelect={(key) => {
+              if (key === "claims") {
+                setClaimCenterOpen((v) => !v);
+                return;
+              }
+              setView(key);
+              setClaimCenterOpen(false);
+            }}
+          />
           {view === "quests" && (
             <div className="flex items-center gap-2">
               <button
@@ -565,6 +691,29 @@ export default function App() {
           )}
         </div>
 
+        {isAuthed && claimCenterOpen && (
+          <div className="mb-4">
+            <ClaimCenter
+              claimableCount={claimableCount}
+              isOpen={claimCenterOpen}
+              onToggle={() => setClaimCenterOpen(false)}
+              showTrigger={false}
+              dailyClaimable={Boolean(dailyQuestChain?.rewardClaimable)}
+              dailyRewardXp={dailyQuestChain?.rewardXp ?? 0}
+              dailyClaimStatusText={dailyClaimStatusText}
+              onClaimDaily={onClaimDailyReward}
+              claimingDaily={claimingDailyReward}
+              recoveryClaimable={Boolean(recoveryQuest?.claimable)}
+              recoveryRewardXp={recoveryQuest?.rewardXp ?? 0}
+              onClaimRecovery={onClaimRecovery}
+              claimingRecovery={claimingRecovery}
+              newAchievementsCount={unseenAchievementKeys.length}
+              onAcknowledgeAchievements={onAcknowledgeAchievements}
+              history={claimHistory}
+            />
+          </div>
+        )}
+
         {view === "profile" && (
           <ProfileScreen
             habits={habits}
@@ -576,7 +725,14 @@ export default function App() {
             recentActivityHasMore={recentActivityHasMore}
             onLoadMoreActivity={() => setActivityLimit((n) => Math.min(n + 10, 100))}
             onCollapseActivity={activityLimit > 5 ? () => setActivityLimit(5) : undefined}
+            unlockedSkinKeys={unlockedSkinKeys}
+            selectedSkinKey={selectedSkinKey}
+            onSelectSkin={setSelectedSkinKey}
           />
+        )}
+
+        {view === "quests" && (
+          <StreakComboMeter habits={habits} />
         )}
 
         {view === "quests" && (
@@ -608,6 +764,7 @@ export default function App() {
             loading={dailyQuestLoading}
             claiming={claimingDailyReward}
             onClaimReward={onClaimDailyReward}
+            panelSkinClass={selectedSkin.bossPanelClass}
           />
         )}
 
@@ -787,6 +944,7 @@ export default function App() {
                 <HabitCard
                   key={h.id}
                   habit={h}
+                  cardSkinClass={selectedSkin.cardClass}
                   onCheckIn={onCheckIn}
                   onUseFreeze={onUseFreeze}
                   canUseFreeze={isAuthed && freezeCharges > 0}

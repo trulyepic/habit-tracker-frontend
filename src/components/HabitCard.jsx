@@ -12,6 +12,7 @@ export default function HabitCard({
   consumingFreeze,
   toggling,
   deleting,
+  cardSkinClass = "border-slate-200 bg-gradient-to-br from-white to-slate-50",
 }) {
   const [minutes, setMinutes] = useState("");
 
@@ -24,7 +25,7 @@ export default function HabitCard({
   const freezeEligible = canUseFreeze && !habit.checkedInToday && (habit.currentStreak ?? 0) > 0 && habit.isActive;
 
   return (
-    <div className="motion-fade-slide surface-interactive rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm hover:border-slate-300">
+    <div className={`motion-fade-slide surface-interactive rounded-2xl border p-5 shadow-sm ${cardSkinClass}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

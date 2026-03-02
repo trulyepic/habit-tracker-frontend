@@ -4,6 +4,7 @@ import { PlayerBar } from "./PlayerBar";
 import TitleBanner from "./TitleBanner";
 import AchievementsScreen from "./AchievementsScreen";
 import ActivityFeed from "./ActivityFeed";
+import SkinInventory from "./SkinInventory";
 import { coerceUnlockedMap } from "../gamification/achievements";
 
 function StatCard({ icon: Icon, label, value, tint }) {
@@ -30,6 +31,9 @@ export default function ProfileScreen({
   recentActivityHasMore = false,
   onLoadMoreActivity,
   onCollapseActivity,
+  unlockedSkinKeys = [],
+  selectedSkinKey = "classic",
+  onSelectSkin,
 }) {
   const source = playerProfile ?? player;
 
@@ -77,6 +81,14 @@ export default function ProfileScreen({
         hasMore={recentActivityHasMore}
         onLoadMore={onLoadMoreActivity}
         onCollapse={onCollapseActivity}
+      />
+
+      <SkinInventory
+        unlockedSkinKeys={unlockedSkinKeys}
+        selectedSkinKey={selectedSkinKey}
+        onSelectSkin={onSelectSkin}
+        habits={habits}
+        totalMinutesLogged={source?.totalMinutesLogged ?? 0}
       />
 
       <AchievementsScreen habits={habits} playerProfile={source} />
