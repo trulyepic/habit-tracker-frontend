@@ -69,7 +69,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
 
-    if (url.port === "8000" && url.pathname === "/login/") {
+    if (url.pathname === "/login/") {
       authed = true;
       const next = url.searchParams.get("next") || "http://127.0.0.1:4173/";
       await route.fulfill({
@@ -80,7 +80,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
       return;
     }
 
-    if (url.port === "8000" && url.pathname === "/api/logout/") {
+    if (url.pathname === "/api/logout/") {
       authed = false;
       await route.fulfill({
         status: 200,
@@ -90,7 +90,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
       return;
     }
 
-    if (url.port === "8000" && url.pathname === "/graphql/") {
+    if (url.pathname === "/graphql/") {
       const body = route.request().postDataJSON() || {};
       const query = body.query || "";
       const variables = body.variables || {};
