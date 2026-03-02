@@ -92,6 +92,10 @@ export default function HabitCard({
               Optional time log for XP bonus.
             </div>
           </div>
+
+          <p className="mt-2 text-[11px] text-slate-500">
+            Deactivate keeps quest history. Delete permanently removes the quest and its check-ins.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

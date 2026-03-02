@@ -89,6 +89,21 @@ export const DAILY_QUEST_CHAIN = gql`
   }
 `;
 
+export const RECENT_ACTIVITY = gql`
+  query RecentActivity($limit: Int) {
+    recentActivity(limit: $limit) {
+      id
+      action
+      habitName
+      date
+      createdAt
+      minutesSpent
+      xpAwarded
+      usedFreeze
+    }
+  }
+`;
+
 export const CREATE_HABIT = gql`
   mutation CreateHabit($name: String!, $description: String) {
     createHabit(name: $name, description: $description) {

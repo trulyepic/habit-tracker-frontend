@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@apollo/client/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Compass, Flame, ShieldCheck, Snowflake, Sparkles, Swords } from "lucide-react";
 
 import AuthBar from "./components/AuthBar";
@@ -20,6 +20,7 @@ import {
   DAILY_QUEST_CHAIN,
   DELETE_HABIT,
   GET_HABITS,
+  RECENT_ACTIVITY,
   TOGGLE_HABIT,
 } from "./graphql/operations";
 import { HABIT_FIELDS } from "./graphql/fragments";
@@ -30,6 +31,8 @@ import TopTabs from "./components/TopTabs";
 import QuestPanelTabs from "./components/QuestPanelTabs";
 import ProfileScreen from "./components/ProfileScreen";
 import DailyQuestChain from "./components/DailyQuestChain";
+import ClaimCenter from "./components/ClaimCenter";
+import { coerceUnlockedMap } from "./gamification/achievements";
 import { resolveTitleState, resolveTitleStateFromServerProfile } from "./gamification/titles";
 
 const STARTER_QUESTS = [
@@ -67,6 +70,13 @@ export default function App() {
     fetchPolicy: "network-only",
   });
 
+  const [activityLimit, setActivityLimit] = useState(5);
+  const { data: recentActivityData, loading: recentActivityLoading } = useQuery(RECENT_ACTIVITY, {
+    variables: { limit: activityLimit },
+    skip: !isAuthed,
+    fetchPolicy: "network-only",
+  });
+
   const habits = useMemo(() => (isAuthed ? data?.habits ?? [] : guestHabits), [isAuthed, data, guestHabits]);
 
   const [toggleHabit, { loading: togglingAuthed }] = useMutation(TOGGLE_HABIT);
@@ -96,11 +106,7 @@ export default function App() {
             const alreadyExists = existingRefs.some((ref) => readField("id", ref) === newId);
             if (alreadyExists) return existingRefs;
 
-            const newRef = cache.writeFragment({
-              data: newHabit,
-              fragment: HABIT_FIELDS,
-            });
-
+            const newRef = cache.writeFragment({ data: newHabit, fragment: HABIT_FIELDS });
             return [newRef, ...existingRefs];
           },
         },
@@ -137,6 +143,10 @@ export default function App() {
   const [questPanel, setQuestPanel] = useState("today");
   const [filterMode, setFilterMode] = useState("active");
   const [sortMode, setSortMode] = useState("next-up");
+  const [claimCenterOpen, setClaimCenterOpen] = useState(false);
+  const [claimHistory, setClaimHistory] = useState([]);
+  const [seenAchievementKeys, setSeenAchievementKeys] = useState([]);
+  const [deactivateHint, setDeactivateHint] = useState("");
 
   const creating = isAuthed ? creatingAuthed : false;
   const deleting = isAuthed ? deletingAuthed : false;
@@ -172,6 +182,16 @@ export default function App() {
 
   const freezeCharges = me?.playerProfile?.streakFreezeCharges ?? 0;
   const recoveryQuest = me?.playerProfile?.recoveryQuest ?? null;
+  const recentActivity = recentActivityData?.recentActivity ?? [];
+  const recentActivityHasMore = recentActivity.length >= activityLimit;
+  const unlockedAchievementsMap = coerceUnlockedMap(me?.playerProfile?.achievementsUnlocked);
+  const unlockedAchievementKeys = Object.keys(unlockedAchievementsMap);
+  const unseenAchievementKeys = unlockedAchievementKeys.filter((k) => !seenAchievementKeys.includes(k));
+  const claimableCount =
+    Number(Boolean(dailyQuestData?.dailyQuestChain?.rewardClaimable)) +
+    Number(Boolean(recoveryQuest?.claimable)) +
+    unseenAchievementKeys.length;
+
   const atRiskHabits = useMemo(
     () => habits.filter((h) => h.isActive && !h.checkedInToday && (h.currentStreak ?? 0) > 0),
     [habits]
@@ -188,6 +208,27 @@ export default function App() {
       achievementsUnlockedRaw: player?.achievementsUnlocked,
     });
   }, [isAuthed, me?.playerProfile, player.level, player?.achievementsUnlocked]);
+
+  useEffect(() => {
+    if (!isAuthed || !me?.id) return;
+    const key = `habit-tracker:seen-achievements:${me.id}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(unlockedAchievementKeys));
+      setSeenAchievementKeys(unlockedAchievementKeys);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      setSeenAchievementKeys(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setSeenAchievementKeys([]);
+    }
+  }, [isAuthed, me?.id, unlockedAchievementKeys.join("|")]);
+
+  const pushClaimHistory = (label, value) => {
+    setClaimHistory((prev) => [{ id: `${Date.now()}-${Math.random()}`, label, value }, ...prev].slice(0, 8));
+  };
 
   const createQuest = async ({ questName, questDescription = "" }) => {
     const trimmed = String(questName || "").trim();
@@ -230,9 +271,7 @@ export default function App() {
   const onCheckIn = async (habitId, minutesSpent) => {
     if (!isAuthed) {
       const habit = guestHabits.find((h) => h.id === habitId);
-
       const updatedHabits = guestHabits.map((h) => (h.id === habitId ? guestApplyCheckin(h, { minutesSpent }) : h));
-
       setGuestHabitsAndPersist(updatedHabits);
 
       awardForCheckin({
@@ -245,7 +284,6 @@ export default function App() {
           totalCheckins: h.totalCheckins,
         })),
       });
-
       return;
     }
 
@@ -258,12 +296,7 @@ export default function App() {
 
     if (payload?.created && typeof awardedXp === "number") {
       pushReward({
-        breakdown: {
-          base: awardedXp,
-          streakBonus: 0,
-          minutesBonus: 0,
-          total: awardedXp,
-        },
+        breakdown: { base: awardedXp, streakBonus: 0, minutesBonus: 0, total: awardedXp },
         leveledUp: nextLevel > player.level,
         nextLevel,
       });
@@ -303,13 +336,9 @@ export default function App() {
     if (!payload) return;
 
     if (payload.claimed && payload.awardedXp > 0) {
+      pushClaimHistory("Daily Quest Reward", `+${payload.awardedXp} XP`);
       pushReward({
-        breakdown: {
-          base: payload.awardedXp,
-          streakBonus: 0,
-          minutesBonus: 0,
-          total: payload.awardedXp,
-        },
+        breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
         leveledUp: (payload.profile?.level ?? player.level) > player.level,
         nextLevel: payload.profile?.level ?? player.level,
       });
@@ -340,13 +369,9 @@ export default function App() {
     const res = await claimRecoveryQuestReward();
     const payload = res?.data?.claimRecoveryQuestReward;
     if (payload?.claimed && payload.awardedXp > 0) {
+      pushClaimHistory("Recovery Reward", `+${payload.awardedXp} XP`);
       pushReward({
-        breakdown: {
-          base: payload.awardedXp,
-          streakBonus: 0,
-          minutesBonus: 0,
-          total: payload.awardedXp,
-        },
+        breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
         leveledUp: (payload.profile?.level ?? player.level) > player.level,
         nextLevel: payload.profile?.level ?? player.level,
       });
@@ -354,12 +379,29 @@ export default function App() {
     await Promise.all([refetchMe(), refetchHabits(), refetchDailyQuest()]);
   };
 
+  const onAcknowledgeAchievements = () => {
+    if (!isAuthed || !me?.id || unseenAchievementKeys.length === 0) return;
+    const merged = [...new Set([...seenAchievementKeys, ...unseenAchievementKeys])];
+    setSeenAchievementKeys(merged);
+    localStorage.setItem(`habit-tracker:seen-achievements:${me.id}`, JSON.stringify(merged));
+    pushClaimHistory("Achievements Acknowledged", `${unseenAchievementKeys.length} new`);
+  };
+
   const onToggle = async (id, isActive) => {
     if (!isAuthed) {
       setGuestHabitsAndPersist(guestHabits.map((h) => (h.id === id ? { ...h, isActive } : h)));
+      if (!isActive && filterMode === "active") {
+        setFilterMode("all");
+        setDeactivateHint("Quest deactivated. Switched to All so it stays visible.");
+      }
       return;
     }
+
     await toggleHabit({ variables: { id, isActive } });
+    if (!isActive && filterMode === "active") {
+      setFilterMode("all");
+      setDeactivateHint("Quest deactivated. Switched to All so it stays visible.");
+    }
   };
 
   const onDelete = async (id) => {
@@ -463,6 +505,25 @@ export default function App() {
           <AuthBar isAuthed={isAuthed} me={me} onLogout={onLogout} />
 
           <div className="flex flex-wrap items-center gap-2">
+            {isAuthed && (
+              <ClaimCenter
+                claimableCount={claimableCount}
+                isOpen={claimCenterOpen}
+                onToggle={() => setClaimCenterOpen((v) => !v)}
+                dailyClaimable={Boolean(dailyQuestData?.dailyQuestChain?.rewardClaimable)}
+                dailyRewardXp={dailyQuestData?.dailyQuestChain?.rewardXp ?? 0}
+                onClaimDaily={onClaimDailyReward}
+                claimingDaily={claimingDailyReward}
+                recoveryClaimable={Boolean(recoveryQuest?.claimable)}
+                recoveryRewardXp={recoveryQuest?.rewardXp ?? 0}
+                onClaimRecovery={onClaimRecovery}
+                claimingRecovery={claimingRecovery}
+                newAchievementsCount={unseenAchievementKeys.length}
+                onAcknowledgeAchievements={onAcknowledgeAchievements}
+                history={claimHistory}
+              />
+            )}
+
             {isAuthed && guestHabits.length > 0 && (
               <button
                 onClick={onImportGuestHabits}
@@ -505,7 +566,17 @@ export default function App() {
         </div>
 
         {view === "profile" && (
-          <ProfileScreen habits={habits} player={player} playerProfile={me?.playerProfile ?? null} titleState={titleState} />
+          <ProfileScreen
+            habits={habits}
+            player={player}
+            playerProfile={me?.playerProfile ?? null}
+            titleState={titleState}
+            recentActivity={recentActivity}
+            recentActivityLoading={recentActivityLoading}
+            recentActivityHasMore={recentActivityHasMore}
+            onLoadMoreActivity={() => setActivityLimit((n) => Math.min(n + 10, 100))}
+            onCollapseActivity={activityLimit > 5 ? () => setActivityLimit(5) : undefined}
+          />
         )}
 
         {view === "quests" && (
@@ -702,6 +773,13 @@ export default function App() {
                   </select>
                 </div>
               </div>
+
+              {deactivateHint && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                  {deactivateHint}
+                  <button type="button" className="text-sky-800 hover:underline" onClick={() => setDeactivateHint("")}>Dismiss</button>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-3">
@@ -728,25 +806,6 @@ export default function App() {
                     Your quest log is empty
                   </div>
                   <p className="mt-1 text-slate-500">Create your first quest or tap a starter template in the Create tab.</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {STARTER_QUESTS.map((q) => (
-                      <button
-                        key={`empty-${q.name}`}
-                        type="button"
-                        onClick={async () => {
-                          const created = await createQuest({ questName: q.name, questDescription: q.description });
-                          if (created) {
-                            setName("");
-                            setDescription("");
-                            setQuestPanel("quests");
-                          }
-                        }}
-                        className="rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:from-slate-800 hover:to-slate-700 hover:shadow-sm active:translate-y-0"
-                      >
-                        Start: {q.name}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
 
