@@ -2,6 +2,8 @@ import React from "react";
 import { API_BASE, APP_BASE } from "../lib/config";
 
 export default function AuthBar({ isAuthed, me, onLogout }) {
+  const next = encodeURIComponent(`${APP_BASE}/`);
+
   return (
     <div className="text-sm text-slate-600">
       {isAuthed ? (
@@ -22,7 +24,7 @@ export default function AuthBar({ isAuthed, me, onLogout }) {
         <div className="flex flex-wrap items-center gap-2">
           <span>Guest mode (saved locally).</span>
           <a
-            href={`${API_BASE}/login/?next=${APP_BASE}/`}
+            href={`${API_BASE}/login/?next=${next}`}
             target="_self"
             className="text-blue-600 hover:text-blue-700 hover:underline"
           >
@@ -30,7 +32,7 @@ export default function AuthBar({ isAuthed, me, onLogout }) {
           </a>
           <span className="text-slate-300">·</span>
           <a
-            href={`${API_BASE}/register/`}
+            href={`${API_BASE}/register/?next=${next}`}
             target="_self"
             className="text-blue-600 hover:text-blue-700 hover:underline"
           >

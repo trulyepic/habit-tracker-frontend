@@ -26,7 +26,7 @@ export function guestNewHabit(name) {
   };
 }
 
-export function guestApplyCheckin(h) {
+export function guestApplyCheckin(h, {minutesSpent } = {}) {
   if (h.checkedInToday) return h;
 
   const total = (h.totalCheckins ?? 0) + 1;
@@ -41,5 +41,22 @@ export function guestApplyCheckin(h) {
     last7DaysCount: last7,
     currentStreak,
     bestStreak,
+    lastMinutesSpent: minutesSpent ?? null,
   };
+}
+
+
+export function guestRolloverIfNewDay(habits) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const last = localStorage.getItem("habit-tracker:last-day");
+
+  if (last === today) return habits;
+
+  localStorage.setItem("habit-tracker:last-day", today);
+
+  // reset today's flags
+  return habits.map((h) => ({
+    ...h,
+    checkedInToday: false,
+  }));
 }

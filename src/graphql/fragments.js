@@ -8,6 +8,7 @@ export const HABIT_FIELDS = gql`
     isActive
     totalCheckins
     checkedInToday
+    usedFreezeToday
     last7DaysCount
     currentStreak
     bestStreak
