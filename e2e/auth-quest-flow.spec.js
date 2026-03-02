@@ -267,7 +267,8 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByText("Guest mode (saved locally).")).toBeVisible();
+  await expect(page.getByText("Guest mode")).toBeVisible();
+  await expect(page.getByText("Saved locally")).toBeVisible();
 
   await page.getByRole("link", { name: "Login" }).click();
   await expect(page.getByText("Logged in as")).toBeVisible();
