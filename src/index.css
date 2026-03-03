@@ -144,6 +144,21 @@
     }
   }
 
+  @keyframes raid-fill-pulse {
+    0% {
+      filter: saturate(1);
+      transform: translateX(0);
+    }
+    50% {
+      filter: saturate(1.12);
+      transform: translateX(1px);
+    }
+    100% {
+      filter: saturate(1);
+      transform: translateX(0);
+    }
+  }
+
   .motion-fade-slide {
     animation: fade-slide-up 320ms ease-out both;
   }
@@ -190,5 +205,10 @@
 
   .chest-pop {
     animation: chest-pop 420ms ease-out both;
+  }
+
+  .weekly-raid-fill {
+    animation: raid-fill-pulse 2.8s ease-in-out infinite;
+    transform-origin: left center;
   }
 }

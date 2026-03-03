@@ -15,6 +15,7 @@ import { playSoundCue, primeSoundCues } from "./lib/soundCues";
 import {
   CLAIM_DAILY_QUEST_REWARD,
   CLAIM_RECOVERY_QUEST_REWARD,
+  CLAIM_WEEKLY_BOSS_REWARD,
   CHECK_IN_TODAY,
   CONSUME_STREAK_FREEZE,
   CREATE_HABIT,
@@ -23,6 +24,7 @@ import {
   GET_HABITS,
   RECENT_ACTIVITY,
   TOGGLE_HABIT,
+  WEEKLY_BOSS_ENCOUNTER,
 } from "./graphql/operations";
 import { HABIT_FIELDS } from "./graphql/fragments";
 import { useGamification } from "./gamification/useGamification";
@@ -32,6 +34,7 @@ import MiniMapNav from "./components/MiniMapNav";
 import QuestPanelTabs from "./components/QuestPanelTabs";
 import ProfileScreen from "./components/ProfileScreen";
 import DailyQuestChain from "./components/DailyQuestChain";
+import WeeklyBossEncounter from "./components/WeeklyBossEncounter";
 import ClaimCenter from "./components/ClaimCenter";
 import XpOrb from "./components/XpOrb";
 import LevelUpScene from "./components/LevelUpScene";
@@ -72,6 +75,14 @@ export default function App() {
     loading: dailyQuestLoading,
     refetch: refetchDailyQuest,
   } = useQuery(DAILY_QUEST_CHAIN, {
+    skip: !isAuthed,
+    fetchPolicy: "network-only",
+  });
+  const {
+    data: weeklyBossData,
+    loading: weeklyBossLoading,
+    refetch: refetchWeeklyBoss,
+  } = useQuery(WEEKLY_BOSS_ENCOUNTER, {
     skip: !isAuthed,
     fetchPolicy: "network-only",
   });
@@ -139,6 +150,7 @@ export default function App() {
   });
 
   const [claimDailyQuestReward, { loading: claimingDailyReward }] = useMutation(CLAIM_DAILY_QUEST_REWARD);
+  const [claimWeeklyBossReward, { loading: claimingWeeklyBoss }] = useMutation(CLAIM_WEEKLY_BOSS_REWARD);
   const [consumeStreakFreeze, { loading: consumingFreeze }] = useMutation(CONSUME_STREAK_FREEZE);
   const [claimRecoveryQuestReward, { loading: claimingRecovery }] = useMutation(CLAIM_RECOVERY_QUEST_REWARD);
 
@@ -152,6 +164,7 @@ export default function App() {
   const [claimCenterOpen, setClaimCenterOpen] = useState(false);
   const [claimHistory, setClaimHistory] = useState([]);
   const [dailyClaimFeedback, setDailyClaimFeedback] = useState("");
+  const [weeklyClaimFeedback, setWeeklyClaimFeedback] = useState("");
   const [chestReveal, setChestReveal] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -196,6 +209,7 @@ export default function App() {
   const freezeCharges = me?.playerProfile?.streakFreezeCharges ?? 0;
   const recoveryQuest = me?.playerProfile?.recoveryQuest ?? null;
   const dailyQuestChain = dailyQuestData?.dailyQuestChain ?? null;
+  const weeklyBossEncounter = weeklyBossData?.weeklyBossEncounter ?? null;
   const recentActivity = recentActivityData?.recentActivity ?? [];
   const recentActivityHasMore = recentActivity.length >= activityLimit;
   const unlockedAchievementsMap = coerceUnlockedMap(me?.playerProfile?.achievementsUnlocked);
@@ -208,6 +222,7 @@ export default function App() {
   const skinStorageKey = `habit-tracker:skin:${isAuthed && me?.id ? me.id : "guest"}`;
   const claimableCount =
     Number(Boolean(dailyQuestChain?.rewardClaimable)) +
+    Number(Boolean(weeklyBossEncounter?.rewardClaimable)) +
     Number(Boolean(recoveryQuest?.claimable)) +
     unseenAchievementKeys.length;
 
@@ -333,7 +348,7 @@ export default function App() {
 
   const onRefresh = async () => {
     if (!isAuthed) return;
-    await Promise.all([refetchHabits(), refetchDailyQuest()]);
+    await Promise.all([refetchHabits(), refetchDailyQuest(), refetchWeeklyBoss()]);
   };
 
   const onCreate = async (e) => {
@@ -386,6 +401,7 @@ export default function App() {
       const meRes = await refetchMe();
       const habitsRes = await refetchHabits();
       await refetchDailyQuest();
+      await refetchWeeklyBoss();
 
       const serverProfile = meRes?.data?.me?.playerProfile;
       const serverHabits = habitsRes?.data?.habits ?? [];
@@ -446,6 +462,41 @@ export default function App() {
     await refetchDailyQuest();
   };
 
+  const onClaimWeeklyBossReward = async () => {
+    if (!isAuthed) return;
+
+    const res = await claimWeeklyBossReward();
+    const payload = res?.data?.claimWeeklyBossReward;
+    if (!payload) return;
+
+    if (payload.claimed && payload.awardedXp > 0) {
+      if (soundEnabled) playSoundCue("claim");
+      pushClaimHistory("Weekly Boss Reward", `+${payload.awardedXp} XP`);
+      pushReward({
+        breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
+        leveledUp: (payload.profile?.level ?? player.level) > player.level,
+        nextLevel: payload.profile?.level ?? player.level,
+      });
+      if (soundEnabled && (payload.profile?.level ?? player.level) > player.level) {
+        playSoundCue("level_up");
+      }
+      await refetchMe();
+      setWeeklyClaimFeedback("Weekly boss reward claimed.");
+      setChestReveal({
+        title: "Weekly Raid Chest",
+        subtitle: "Raid victory secured.",
+        xp: payload.awardedXp,
+        bonusText: "A tougher encounter, a bigger payout.",
+      });
+    } else if (payload.claimReason === "already_claimed") {
+      setWeeklyClaimFeedback("Weekly reward already claimed.");
+    } else if (payload.claimReason === "incomplete") {
+      setWeeklyClaimFeedback("Weekly raid incomplete. Break every mechanic first.");
+    }
+
+    await refetchWeeklyBoss();
+  };
+
   const onUseFreeze = async (habitId) => {
     if (!isAuthed) return;
     const res = await consumeStreakFreeze({ variables: { habitId } });
@@ -459,7 +510,7 @@ export default function App() {
       };
       alert(reasonMap[payload.reason] ?? "Could not consume freeze.");
     }
-    await Promise.all([refetchHabits(), refetchMe(), refetchDailyQuest()]);
+    await Promise.all([refetchHabits(), refetchMe(), refetchDailyQuest(), refetchWeeklyBoss()]);
   };
 
   const onClaimRecovery = async () => {
@@ -484,7 +535,7 @@ export default function App() {
         bonusText: "+1 freeze charge also awarded.",
       });
     }
-    await Promise.all([refetchMe(), refetchHabits(), refetchDailyQuest()]);
+    await Promise.all([refetchMe(), refetchHabits(), refetchDailyQuest(), refetchWeeklyBoss()]);
   };
 
   const onAcknowledgeAchievements = () => {
@@ -740,6 +791,7 @@ export default function App() {
             active={questPanel}
             onChange={setQuestPanel}
             badges={{
+              weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
               safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
               quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
             }}
@@ -765,6 +817,20 @@ export default function App() {
             claiming={claimingDailyReward}
             onClaimReward={onClaimDailyReward}
             panelSkinClass={selectedSkin.bossPanelClass}
+          />
+        )}
+
+        {view === "quests" && questPanel === "weekly" && isAuthed && (
+          <WeeklyBossEncounter
+            encounter={weeklyBossEncounter}
+            habits={habits}
+            loading={weeklyBossLoading}
+            claiming={claimingWeeklyBoss}
+            onClaimReward={onClaimWeeklyBossReward}
+            onOpenSafety={() => setQuestPanel("safety")}
+            onOpenCreate={() => setQuestPanel("create")}
+            panelSkinClass={selectedSkin.bossPanelClass}
+            feedback={weeklyClaimFeedback}
           />
         )}
 

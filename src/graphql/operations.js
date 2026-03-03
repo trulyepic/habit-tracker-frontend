@@ -69,6 +69,66 @@ export const DAILY_QUEST_CHAIN = gql`
   query DailyQuestChain {
     dailyQuestChain {
       dateKey
+      boss {
+        key
+        name
+        subtitle
+        icon
+        tint
+        rarity
+        difficulty
+        isWeekly
+        mechanics
+        buffs {
+          key
+          name
+          description
+        }
+      }
+      completedCount
+      totalCount
+      completionPct
+      isComplete
+      rewardXp
+      rewardClaimed
+      rewardClaimable
+      rewardClaimedAt
+      rewardAwardedXp
+      quests {
+        key
+        title
+        description
+        icon
+        current
+        target
+        complete
+      }
+    }
+  }
+`;
+
+export const WEEKLY_BOSS_ENCOUNTER = gql`
+  query WeeklyBossEncounter {
+    weeklyBossEncounter {
+      weekKey
+      weekStart
+      weekEnd
+      boss {
+        key
+        name
+        subtitle
+        icon
+        tint
+        rarity
+        difficulty
+        isWeekly
+        mechanics
+        buffs {
+          key
+          name
+          description
+        }
+      }
       completedCount
       totalCount
       completionPct
@@ -212,6 +272,22 @@ export const CLAIM_DAILY_QUEST_REWARD = gql`
       awardedXp
       chain {
         dateKey
+        boss {
+          key
+          name
+          subtitle
+          icon
+          tint
+          rarity
+          difficulty
+          isWeekly
+          mechanics
+          buffs {
+            key
+            name
+            description
+          }
+        }
         completedCount
         totalCount
         completionPct
@@ -247,6 +323,62 @@ export const CLAIM_DAILY_QUEST_REWARD = gql`
           rewardXp
           claimable
         }
+      }
+    }
+  }
+`;
+
+export const CLAIM_WEEKLY_BOSS_REWARD = gql`
+  mutation ClaimWeeklyBossReward {
+    claimWeeklyBossReward {
+      claimed
+      claimReason
+      awardedXp
+      encounter {
+        weekKey
+        weekStart
+        weekEnd
+        boss {
+          key
+          name
+          subtitle
+          icon
+          tint
+          rarity
+          difficulty
+          isWeekly
+          mechanics
+          buffs {
+            key
+            name
+            description
+          }
+        }
+        completedCount
+        totalCount
+        completionPct
+        isComplete
+        rewardXp
+        rewardClaimed
+        rewardClaimable
+        rewardClaimedAt
+        rewardAwardedXp
+        quests {
+          key
+          title
+          description
+          icon
+          current
+          target
+          complete
+        }
+      }
+      profile {
+        totalXp
+        level
+        totalMinutesLogged
+        achievementsUnlocked
+        streakFreezeCharges
       }
     }
   }

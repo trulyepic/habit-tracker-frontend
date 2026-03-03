@@ -4,6 +4,9 @@ export const ACHIEVEMENT_KEYS = [
   "ten_hours",
   "iron_will",
   "centurion",
+  "raid_initiate",
+  "behemoth_bane",
+  "voidbreaker",
 ] as const;
 
 export type AchievementKey = (typeof ACHIEVEMENT_KEYS)[number];
@@ -19,6 +22,9 @@ export type AchievementContext = {
   maxStreak: number;
   totalCheckins: number;
   totalMinutesLogged: number;
+  weeklyBossWins: number;
+  weeklyHardBossWins: number;
+  weeklyLegendaryBossWins: number;
 };
 
 export const RARITY_META: Record<
@@ -112,6 +118,27 @@ export const ACHIEVEMENTS: Record<
     rarity: "legendary",
     bonusXp: 200,
   },
+  raid_initiate: {
+    title: "Raid Initiate",
+    description: "Claim your first Weekly Boss reward.",
+    emoji: "🗺️",
+    rarity: "rare",
+    bonusXp: 25,
+  },
+  behemoth_bane: {
+    title: "Behemoth Bane",
+    description: "Defeat a hard Weekly Boss.",
+    emoji: "🪓",
+    rarity: "epic",
+    bonusXp: 75,
+  },
+  voidbreaker: {
+    title: "Voidbreaker",
+    description: "Defeat two legendary Weekly Bosses.",
+    emoji: "🌌",
+    rarity: "legendary",
+    bonusXp: 200,
+  },
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
@@ -129,6 +156,9 @@ export function buildAchievementContext(
     maxStreak,
     totalCheckins,
     totalMinutesLogged: totalMinutesLogged ?? 0,
+    weeklyBossWins: 0,
+    weeklyHardBossWins: 0,
+    weeklyLegendaryBossWins: 0,
   };
 }
 
@@ -144,6 +174,12 @@ export function shouldUnlockAchievement(key: AchievementKey, ctx: AchievementCon
       return ctx.maxStreak >= 30;
     case "centurion":
       return ctx.totalCheckins >= 100;
+    case "raid_initiate":
+      return ctx.weeklyBossWins >= 1;
+    case "behemoth_bane":
+      return ctx.weeklyHardBossWins >= 1;
+    case "voidbreaker":
+      return ctx.weeklyLegendaryBossWins >= 2;
     default:
       return false;
   }
@@ -178,6 +214,21 @@ export function getAchievementProgress(
       return {
         progress01: clamp01(ctx.totalCheckins / 100),
         progressText: `${Math.min(ctx.totalCheckins, 100)} / 100 check-ins`,
+      };
+    case "raid_initiate":
+      return {
+        progress01: clamp01(ctx.weeklyBossWins / 1),
+        progressText: `${Math.min(ctx.weeklyBossWins, 1)} / 1 weekly boss`,
+      };
+    case "behemoth_bane":
+      return {
+        progress01: clamp01(ctx.weeklyHardBossWins / 1),
+        progressText: `${Math.min(ctx.weeklyHardBossWins, 1)} / 1 hard weekly boss`,
+      };
+    case "voidbreaker":
+      return {
+        progress01: clamp01(ctx.weeklyLegendaryBossWins / 2),
+        progressText: `${Math.min(ctx.weeklyLegendaryBossWins, 2)} / 2 legendary weekly bosses`,
       };
     default:
       return { progress01: 0, progressText: "Locked" };
