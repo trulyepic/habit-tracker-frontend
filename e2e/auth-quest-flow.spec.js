@@ -284,7 +284,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await expect(page.getByText("E2E Quest")).toBeVisible();
 
   await page.getByRole("button", { name: "Check-in" }).click();
-  await expect(page.getByText("Checked in today")).toBeVisible();
+  await expect(page.getByText("Checked in today", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Deactivate" }).click();
   await expect(page.getByText("Quest deactivated. Switched to All so it stays visible.")).toBeVisible();
