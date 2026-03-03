@@ -523,6 +523,12 @@ export default function App() {
     );
   };
 
+  // Prevent stacked overlays by showing only one dialog at a time.
+  const hasChestReveal = Boolean(chestReveal);
+  const hasAchievementDialog = !hasChestReveal && Boolean(lastUnlocks?.length);
+  const hasLevelUpDialog = !hasChestReveal && !hasAchievementDialog && Boolean(lastReward?.leveledUp);
+  const hasRewardToast = !hasChestReveal && !hasAchievementDialog && !hasLevelUpDialog && Boolean(lastReward);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50/40">
       <div className="pointer-events-none absolute inset-0 z-0">
@@ -533,10 +539,10 @@ export default function App() {
         <div className="absolute inset-0 opacity-[0.26] [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.10)_1px,transparent_0)] [background-size:24px_24px]" />
       </div>
       <Suspense fallback={null}>
-        <RewardToast reward={lastReward} onClose={clearLastReward} />
-        <AchievementToast unlocks={lastUnlocks} onClose={clearLastUnlocks} />
-        <LevelUpScene reward={lastReward} onClose={clearLastReward} />
-        <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />
+        {hasRewardToast && <RewardToast reward={lastReward} onClose={clearLastReward} />}
+        {hasAchievementDialog && <AchievementToast unlocks={lastUnlocks} onClose={clearLastUnlocks} />}
+        {hasLevelUpDialog && <LevelUpScene reward={lastReward} onClose={clearLastReward} />}
+        {hasChestReveal && <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
       </Suspense>
 
       <div className="relative z-10 mx-auto max-w-4xl px-4 py-10">

@@ -5,7 +5,7 @@ export default function LevelUpScene({ reward, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
 
       <div className="levelup-scene relative w-full max-w-md overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-fuchsia-50 p-6 shadow-2xl">
         <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-200/60 blur-2xl" />
