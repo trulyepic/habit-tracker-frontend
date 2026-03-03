@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Crown, Flame, Lock, ShieldCheck, Sparkles, Swords, Target, Trophy } from "lucide-react";
-import { buildDailyQuestChain } from "../gamification/dailyQuests";
+import { buildDailyQuestChain } from "../../gamification/dailyQuests";
+import { buffStateMeta, resolveBuffState } from "./buffLifecycle";
+import { getBuffTone, getDifficultyToken, getRarityToken, STAT_CARD_TONES } from "./uiTokens";
 
 function QuestIcon({ icon }) {
   if (icon === "crown") return <Crown className="h-4 w-4" />;
@@ -129,13 +131,28 @@ export default function DailyQuestChain({
   claiming = false,
   onClaimReward,
   panelSkinClass = "border-slate-200 bg-white",
+  skinHud = null,
 }) {
   const localChain = useMemo(() => {
     return buildDailyQuestChain({ habits: habits ?? [], level: level ?? 1 });
   }, [habits, level]);
   const chain = isAuthed && serverChain ? serverChain : localChain;
   const [showClaimFx, setShowClaimFx] = useState(false);
+  const [encounterTimeline, setEncounterTimeline] = useState([]);
   const prevClaimedRef = useRef(Boolean(chain.rewardClaimed));
+  const prevCompletionPctRef = useRef(Number(chain.completionPct || 0));
+  const prevCompletedCountRef = useRef(Number(chain.completedCount || 0));
+  const prevClaimableRef = useRef(Boolean(chain.rewardClaimable));
+
+  const pushTimeline = (label, kind = "event") => {
+    const item = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      label,
+      kind,
+      ts: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    };
+    setEncounterTimeline((prev) => [item, ...prev].slice(0, 8));
+  };
 
   useEffect(() => {
     const justClaimed = !prevClaimedRef.current && Boolean(chain.rewardClaimed);
@@ -147,6 +164,34 @@ export default function DailyQuestChain({
     return () => clearTimeout(t);
   }, [chain.rewardClaimed]);
 
+  useEffect(() => {
+    const currentPct = Number(chain.completionPct || 0);
+    const prevPct = prevCompletionPctRef.current;
+    if (currentPct > prevPct) {
+      pushTimeline(`Progress +${currentPct - prevPct}%`, "progress");
+    }
+    prevCompletionPctRef.current = currentPct;
+
+    const currentDone = Number(chain.completedCount || 0);
+    const prevDone = prevCompletedCountRef.current;
+    if (currentDone > prevDone) {
+      pushTimeline("Mechanic broken", "break");
+    }
+    prevCompletedCountRef.current = currentDone;
+
+    const currentClaimable = Boolean(chain.rewardClaimable);
+    const prevClaimable = prevClaimableRef.current;
+    if (currentClaimable && !prevClaimable) {
+      pushTimeline("Chest unlocked", "unlock");
+    }
+    prevClaimableRef.current = currentClaimable;
+  }, [chain.completionPct, chain.completedCount, chain.rewardClaimable]);
+
+  useEffect(() => {
+    if (!chain.rewardClaimed) return;
+    pushTimeline("Reward claimed", "claim");
+  }, [chain.rewardClaimed]);
+
   const fallbackBoss = resolveBossProfile(chain.quests, chain.isComplete);
   const boss = chain?.boss
     ? {
@@ -156,6 +201,11 @@ export default function DailyQuestChain({
       }
     : fallbackBoss;
   const BossIcon = chain?.boss ? null : boss.icon;
+  const rarityMeta = getRarityToken(boss.rarity);
+  const difficultyMeta = getDifficultyToken(boss.difficulty);
+  const RarityIcon = rarityMeta.Icon;
+  const DifficultyIcon = difficultyMeta.Icon;
+  const focusObjective = chain.quests.find((q) => !q.complete) ?? null;
   const nextObjective = chain.quests.find((q) => !q.complete) ?? null;
   const canClaim = Boolean(chain.rewardClaimable && !claiming);
   const claimState = chain.rewardClaimed
@@ -166,6 +216,18 @@ export default function DailyQuestChain({
     ? "claimable"
     : "locked";
   const claimedAtLabel = formatClaimedAt(chain.rewardClaimedAt);
+  const anticipationReady = !chain.rewardClaimed && !chain.rewardClaimable && Number(chain.completionPct || 0) >= 80;
+  const hpFillClass = skinHud?.hpFillClass ?? "from-lime-300 via-emerald-200 to-white";
+  const badgeRingClass = skinHud?.badgeRingClass ?? "ring-slate-200/80";
+  const focusRingClass = skinHud?.focusRingClass ?? "ring-indigo-300";
+  const anticipationGlowClass =
+    skinHud?.anticipationGlowClass ?? "shadow-[0_0_0_2px_rgba(99,102,241,0.18),0_0_22px_rgba(99,102,241,0.22)]";
+  const onJumpToObjective = () => {
+    if (!focusObjective) return;
+    const el = document.getElementById(`daily-objective-${focusObjective.key}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   if (isAuthed && loading && !serverChain) {
     return (
@@ -198,28 +260,51 @@ export default function DailyQuestChain({
               {boss.name}
             </div>
             <p className="text-shadow-strong mt-1.5 text-sm text-white">{boss.subtitle}</p>
-            <div className="mt-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/95">
-              <span className="rounded-full bg-white/20 px-2 py-0.5">{boss.rarity}</span>
-              <span className="rounded-full bg-white/20 px-2 py-0.5">{boss.difficulty}</span>
+            <div className="mt-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ring-1 ${badgeRingClass} ${rarityMeta.className}`}
+              >
+                <RarityIcon className="h-3 w-3" />
+                {rarityMeta.label}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ring-1 ${badgeRingClass} ${difficultyMeta.className}`}
+              >
+                <DifficultyIcon className="h-3 w-3" />
+                {difficultyMeta.label}
+              </span>
             </div>
             {boss.buffs?.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {boss.buffs.map((buff) => (
+              <div className="mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+                {boss.buffs.map((buff, idx) => {
+                  const lifecycle = resolveBuffState({
+                    completionPct: chain.completionPct,
+                    buffIndex: idx,
+                    buffCount: boss.buffs.length,
+                  });
+                  const state = buffStateMeta(lifecycle);
+                  return (
                   <div key={buff.key} className="group relative">
                     <button
                       type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/30 bg-white/15 text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                      className={`relative inline-flex h-8 w-8 items-center justify-center rounded-lg border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
                       aria-label={`${buff.name}: ${buff.description}`}
                     >
                       <BuffIcon buffKey={buff.key} />
+                      <span className={`absolute -bottom-1 -right-1 rounded-full border px-1 text-[9px] font-bold ${state.pillClass}`}>
+                        {state.label[0]}
+                      </span>
                     </button>
                     <div className="pointer-events-none invisible absolute bottom-full left-1/2 z-30 mb-1 w-52 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                       <div className="font-semibold text-white">{buff.name}</div>
+                      <div className={`mt-0.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${state.pillClass}`}>
+                        {state.label}
+                      </div>
                       <div className="mt-0.5 text-slate-200">{buff.description}</div>
                     </div>
                   </div>
-                ))}
-                <span className="pl-1 text-[11px] text-white/90">Hover buffs to inspect effects</span>
+                );})}
+                <span className="hidden pl-1 text-[11px] text-white/90 sm:inline">Hover buffs to inspect effects</span>
               </div>
             )}
           </div>
@@ -232,7 +317,7 @@ export default function DailyQuestChain({
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/25">
             <div
-              className="h-full bg-gradient-to-r from-lime-300 via-emerald-200 to-white transition-all duration-300 ease-out"
+              className={`h-full bg-gradient-to-r ${hpFillClass} transition-all duration-300 ease-out`}
               style={{ width: `${chain.completionPct}%` }}
             />
           </div>
@@ -246,15 +331,28 @@ export default function DailyQuestChain({
           </div>
         )}
 
-        <div className="mb-3 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
+          <div
+            className={`motion-stagger-item w-56 shrink-0 rounded-xl border px-3 py-2 sm:w-auto ${
+              STAT_CARD_TONES.reward
+            } ${anticipationReady ? `chest-anticipation ${anticipationGlowClass}` : ""}`}
+            style={{ animationDelay: "40ms" }}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Reward Chest</div>
             <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
               <Trophy className="h-4 w-4 text-amber-600" />
               +{chain.rewardXp} XP
             </div>
+            {anticipationReady && (
+              <div className="mt-0.5 text-[11px] font-semibold text-indigo-700">
+                Chest charging... {Math.max(0, 100 - Number(chain.completionPct || 0))}% to unlock
+              </div>
+            )}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <div
+            className={`motion-stagger-item w-56 shrink-0 rounded-xl border px-3 py-2 sm:w-auto ${STAT_CARD_TONES.progress}`}
+            style={{ animationDelay: "90ms" }}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Next Mechanic</div>
             <div className="mt-1 text-sm font-semibold text-slate-900">
               {nextObjective ? nextObjective.title : "Boss defeated"}
@@ -265,7 +363,10 @@ export default function DailyQuestChain({
               </div>
             )}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <div
+            className={`motion-stagger-item w-56 shrink-0 rounded-xl border px-3 py-2 sm:w-auto ${STAT_CARD_TONES.intel}`}
+            style={{ animationDelay: "140ms" }}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Title Progress</div>
             <div className="mt-1 text-sm font-semibold text-slate-900">
               {titleState?.isMaxTitle ? "MAX" : `${titleState?.nextProgressPct ?? 0}%`}
@@ -276,12 +377,59 @@ export default function DailyQuestChain({
           </div>
         </div>
 
+        <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Encounter Timeline</div>
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {encounterTimeline.length === 0 && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
+                No events yet. Start breaking mechanics.
+              </div>
+            )}
+            {encounterTimeline.map((entry) => (
+              <div
+                key={entry.id}
+                className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs ${
+                  entry.kind === "claim"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : entry.kind === "unlock"
+                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                    : entry.kind === "break"
+                    ? "border-indigo-200 bg-indigo-50 text-indigo-800"
+                    : "border-slate-200 bg-slate-50 text-slate-700"
+                }`}
+              >
+                <div className="font-semibold">{entry.label}</div>
+                <div className="mt-0.5 text-[10px] opacity-80">{entry.ts}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {focusObjective && (
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-3 py-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Best Next Action</div>
+              <div className="text-sm font-semibold text-slate-900">{focusObjective.title}</div>
+            </div>
+            <button
+              type="button"
+              onClick={onJumpToObjective}
+              className="surface-interactive rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700"
+            >
+              Jump
+            </button>
+          </div>
+        )}
+
         {boss.mechanics?.length > 0 && (
           <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mechanics</div>
-            <div className="mt-2 grid gap-1.5">
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:grid sm:gap-1.5 sm:overflow-visible">
               {boss.mechanics.slice(0, 2).map((line, idx) => (
-                <div key={`${boss.key}-mechanic-${idx}`} className="text-xs text-slate-700">
+                <div
+                  key={`${boss.key}-mechanic-${idx}`}
+                  className="w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 sm:w-auto sm:shrink sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
+                >
                   {line}
                 </div>
               ))}
@@ -290,17 +438,19 @@ export default function DailyQuestChain({
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          {chain.quests.map((q) => {
+          {chain.quests.map((q, idx) => {
             const pct = Math.max(0, Math.min(100, Math.round((q.current / q.target) * 100)));
 
             return (
               <div
+                id={`daily-objective-${q.key}`}
                 key={q.key}
-                className={`surface-interactive rounded-xl border p-3 ${
+                className={`motion-stagger-item surface-interactive rounded-xl border p-3 ${
                   q.complete
                     ? "border-emerald-200 bg-emerald-50"
                     : "border-slate-200 bg-gradient-to-br from-white to-slate-50"
-                }`}
+                } ${focusObjective?.key === q.key ? `ring-2 ${focusRingClass}` : ""}`}
+                style={{ animationDelay: `${180 + idx * 50}ms` }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

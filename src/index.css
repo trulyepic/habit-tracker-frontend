@@ -159,8 +159,65 @@
     }
   }
 
+  @keyframes buff-active-pulse {
+    0% {
+      transform: translateY(0) scale(1);
+      filter: saturate(1);
+    }
+    50% {
+      transform: translateY(-1px) scale(1.03);
+      filter: saturate(1.1);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      filter: saturate(1);
+    }
+  }
+
+  @keyframes buff-weakened-flicker {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    25% {
+      opacity: 0.82;
+      transform: translateX(-0.5px);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateX(0.5px);
+    }
+    75% {
+      opacity: 0.84;
+      transform: translateX(-0.5px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes chest-charge-pulse {
+    0% {
+      transform: translateY(0) scale(1);
+      filter: saturate(1);
+    }
+    50% {
+      transform: translateY(-0.5px) scale(1.015);
+      filter: saturate(1.1);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      filter: saturate(1);
+    }
+  }
+
   .motion-fade-slide {
     animation: fade-slide-up 320ms ease-out both;
+  }
+
+  .motion-stagger-item {
+    animation: fade-slide-up 340ms ease-out both;
   }
 
   .surface-interactive {
@@ -210,5 +267,23 @@
   .weekly-raid-fill {
     animation: raid-fill-pulse 2.8s ease-in-out infinite;
     transform-origin: left center;
+  }
+
+  .buff-state-active {
+    animation: buff-active-pulse 2.2s ease-in-out infinite;
+  }
+
+  .buff-state-weakened {
+    animation: buff-weakened-flicker 1.3s linear infinite;
+  }
+
+  .buff-state-broken {
+    filter: grayscale(0.85);
+    opacity: 0.65;
+    transform: scale(0.96);
+  }
+
+  .chest-anticipation {
+    animation: chest-charge-pulse 1.6s ease-in-out infinite;
   }
 }

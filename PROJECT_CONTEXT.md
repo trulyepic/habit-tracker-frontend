@@ -72,8 +72,8 @@
 - GraphQL ops:
   - `src/graphql/operations.js`
 - Key UI components:
-  - `src/components/DailyQuestChain.jsx`
-  - `src/components/WeeklyBossEncounter.jsx`
+  - `src/components/bosses/DailyQuestChain.jsx`
+  - `src/components/bosses/WeeklyBossEncounter.jsx`
   - `src/components/HabitCard.jsx`
   - `src/components/ClaimCenter.jsx`
   - `src/components/ProfileScreen.jsx`
