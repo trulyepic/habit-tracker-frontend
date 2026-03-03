@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@apollo/client/react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Compass, Flame, ShieldCheck, Snowflake, Sparkles, Swords, Volume2, VolumeX } from "lucide-react";
 
 import AuthBar from "./components/AuthBar";
@@ -7,6 +7,7 @@ import HabitCard from "./components/HabitCard";
 
 import { useAuth } from "./hooks/useAuth";
 import { useGuestHabits } from "./hooks/useGuestHabits";
+import { useClaimActions } from "./hooks/useClaimActions";
 
 import { API_BASE } from "./lib/config";
 import { guestApplyCheckin, guestNewHabit } from "./lib/guestHabitUtils";
@@ -15,6 +16,7 @@ import { playSoundCue, primeSoundCues } from "./lib/soundCues";
 import {
   CLAIM_DAILY_QUEST_REWARD,
   CLAIM_RECOVERY_QUEST_REWARD,
+  CLAIM_WEEKLY_BOSS_REWARD,
   CHECK_IN_TODAY,
   CONSUME_STREAK_FREEZE,
   CREATE_HABIT,
@@ -23,23 +25,25 @@ import {
   GET_HABITS,
   RECENT_ACTIVITY,
   TOGGLE_HABIT,
+  WEEKLY_BOSS_ENCOUNTER,
 } from "./graphql/operations";
 import { HABIT_FIELDS } from "./graphql/fragments";
 import { useGamification } from "./gamification/useGamification";
-import RewardToast from "./components/RewardToast";
-import AchievementToast from "./components/AchievementToast";
 import MiniMapNav from "./components/MiniMapNav";
 import QuestPanelTabs from "./components/QuestPanelTabs";
 import ProfileScreen from "./components/ProfileScreen";
-import DailyQuestChain from "./components/DailyQuestChain";
+import { DailyQuestChain, WeeklyBossEncounter } from "./components/bosses";
 import ClaimCenter from "./components/ClaimCenter";
 import XpOrb from "./components/XpOrb";
-import LevelUpScene from "./components/LevelUpScene";
 import StreakComboMeter from "./components/StreakComboMeter";
-import RewardChestReveal from "./components/RewardChestReveal";
 import { coerceUnlockedMap } from "./gamification/achievements";
 import { resolveTitleState, resolveTitleStateFromServerProfile } from "./gamification/titles";
 import { getUnlockedSkins, resolveSkin } from "./gamification/skins";
+
+const RewardToast = lazy(() => import("./components/RewardToast"));
+const AchievementToast = lazy(() => import("./components/AchievementToast"));
+const LevelUpScene = lazy(() => import("./components/LevelUpScene"));
+const RewardChestReveal = lazy(() => import("./components/RewardChestReveal"));
 
 const STARTER_QUESTS = [
   { name: "Morning Mobility", description: "10 minutes of stretching right after waking up." },
@@ -72,6 +76,14 @@ export default function App() {
     loading: dailyQuestLoading,
     refetch: refetchDailyQuest,
   } = useQuery(DAILY_QUEST_CHAIN, {
+    skip: !isAuthed,
+    fetchPolicy: "network-only",
+  });
+  const {
+    data: weeklyBossData,
+    loading: weeklyBossLoading,
+    refetch: refetchWeeklyBoss,
+  } = useQuery(WEEKLY_BOSS_ENCOUNTER, {
     skip: !isAuthed,
     fetchPolicy: "network-only",
   });
@@ -139,6 +151,7 @@ export default function App() {
   });
 
   const [claimDailyQuestReward, { loading: claimingDailyReward }] = useMutation(CLAIM_DAILY_QUEST_REWARD);
+  const [claimWeeklyBossReward, { loading: claimingWeeklyBoss }] = useMutation(CLAIM_WEEKLY_BOSS_REWARD);
   const [consumeStreakFreeze, { loading: consumingFreeze }] = useMutation(CONSUME_STREAK_FREEZE);
   const [claimRecoveryQuestReward, { loading: claimingRecovery }] = useMutation(CLAIM_RECOVERY_QUEST_REWARD);
 
@@ -150,8 +163,6 @@ export default function App() {
   const [filterMode, setFilterMode] = useState("active");
   const [sortMode, setSortMode] = useState("next-up");
   const [claimCenterOpen, setClaimCenterOpen] = useState(false);
-  const [claimHistory, setClaimHistory] = useState([]);
-  const [dailyClaimFeedback, setDailyClaimFeedback] = useState("");
   const [chestReveal, setChestReveal] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -196,6 +207,7 @@ export default function App() {
   const freezeCharges = me?.playerProfile?.streakFreezeCharges ?? 0;
   const recoveryQuest = me?.playerProfile?.recoveryQuest ?? null;
   const dailyQuestChain = dailyQuestData?.dailyQuestChain ?? null;
+  const weeklyBossEncounter = weeklyBossData?.weeklyBossEncounter ?? null;
   const recentActivity = recentActivityData?.recentActivity ?? [];
   const recentActivityHasMore = recentActivity.length >= activityLimit;
   const unlockedAchievementsMap = coerceUnlockedMap(me?.playerProfile?.achievementsUnlocked);
@@ -208,6 +220,7 @@ export default function App() {
   const skinStorageKey = `habit-tracker:skin:${isAuthed && me?.id ? me.id : "guest"}`;
   const claimableCount =
     Number(Boolean(dailyQuestChain?.rewardClaimable)) +
+    Number(Boolean(weeklyBossEncounter?.rewardClaimable)) +
     Number(Boolean(recoveryQuest?.claimable)) +
     unseenAchievementKeys.length;
 
@@ -228,33 +241,30 @@ export default function App() {
     });
   }, [isAuthed, me?.playerProfile, player.level, player?.achievementsUnlocked]);
 
-  const formatClaimedAt = (raw) => {
-    if (!raw) return null;
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  };
-
-  const dailyClaimStatusText = useMemo(() => {
-    if (!dailyQuestChain) return dailyClaimFeedback || "";
-    if (dailyClaimFeedback) return dailyClaimFeedback;
-    if (dailyQuestChain.rewardClaimed) {
-      const claimedAtLabel = formatClaimedAt(dailyQuestChain.rewardClaimedAt);
-      return claimedAtLabel
-        ? `Already claimed today at ${claimedAtLabel}.`
-        : "Already claimed today.";
-    }
-    if (dailyQuestChain.rewardClaimable) {
-      return `Ready to claim +${dailyQuestChain.rewardXp} XP.`;
-    }
-    return "Complete all daily objectives to unlock this reward.";
-  }, [
-    dailyQuestChain?.rewardClaimed,
-    dailyQuestChain?.rewardClaimable,
-    dailyQuestChain?.rewardClaimedAt,
-    dailyQuestChain?.rewardXp,
-    dailyClaimFeedback,
-  ]);
+  const {
+    claimHistory,
+    dailyClaimStatusText,
+    weeklyClaimFeedback,
+    pushClaimHistory,
+    onClaimDailyReward,
+    onClaimWeeklyBossReward,
+    onClaimRecovery,
+  } = useClaimActions({
+    isAuthed,
+    dailyQuestChain,
+    playerLevel: player.level,
+    soundEnabled,
+    claimDailyQuestReward,
+    claimWeeklyBossReward,
+    claimRecoveryQuestReward,
+    refetchMe,
+    refetchHabits,
+    refetchDailyQuest,
+    refetchWeeklyBoss,
+    pushReward,
+    setChestReveal,
+    playSoundCue,
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem(skinStorageKey);
@@ -303,10 +313,6 @@ export default function App() {
     }
   }, [isAuthed, me?.id, unlockedAchievementKeys.join("|")]);
 
-  const pushClaimHistory = (label, value) => {
-    setClaimHistory((prev) => [{ id: `${Date.now()}-${Math.random()}`, label, value }, ...prev].slice(0, 8));
-  };
-
   const createQuest = async ({ questName, questDescription = "" }) => {
     const trimmed = String(questName || "").trim();
     if (!trimmed) return false;
@@ -333,7 +339,7 @@ export default function App() {
 
   const onRefresh = async () => {
     if (!isAuthed) return;
-    await Promise.all([refetchHabits(), refetchDailyQuest()]);
+    await Promise.all([refetchHabits(), refetchDailyQuest(), refetchWeeklyBoss()]);
   };
 
   const onCreate = async (e) => {
@@ -386,6 +392,7 @@ export default function App() {
       const meRes = await refetchMe();
       const habitsRes = await refetchHabits();
       await refetchDailyQuest();
+      await refetchWeeklyBoss();
 
       const serverProfile = meRes?.data?.me?.playerProfile;
       const serverHabits = habitsRes?.data?.habits ?? [];
@@ -408,43 +415,6 @@ export default function App() {
     await refetchMe();
   };
 
-  const onClaimDailyReward = async () => {
-    if (!isAuthed) return;
-
-    const res = await claimDailyQuestReward();
-    const payload = res?.data?.claimDailyQuestReward;
-    if (!payload) return;
-
-    if (payload.claimed && payload.awardedXp > 0) {
-      if (soundEnabled) playSoundCue("claim");
-      pushClaimHistory("Daily Quest Reward", `+${payload.awardedXp} XP`);
-      pushReward({
-        breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
-        leveledUp: (payload.profile?.level ?? player.level) > player.level,
-        nextLevel: payload.profile?.level ?? player.level,
-      });
-      if (soundEnabled && (payload.profile?.level ?? player.level) > player.level) {
-        playSoundCue("level_up");
-      }
-      await refetchMe();
-      setDailyClaimFeedback("Daily reward claimed.");
-      setChestReveal({
-        title: "Daily Quest Chest",
-        subtitle: "Boss reward secured.",
-        xp: payload.awardedXp,
-        bonusText: "Your chain reward has been added to progression.",
-      });
-    } else if (payload.claimReason === "already_claimed") {
-      const claimedAtLabel = formatClaimedAt(payload.chain?.rewardClaimedAt);
-      setDailyClaimFeedback(
-        claimedAtLabel ? `Already claimed today at ${claimedAtLabel}.` : "Already claimed today."
-      );
-    } else if (payload.claimReason === "incomplete") {
-      setDailyClaimFeedback("Daily chain incomplete. Finish all objectives first.");
-    }
-
-    await refetchDailyQuest();
-  };
 
   const onUseFreeze = async (habitId) => {
     if (!isAuthed) return;
@@ -459,33 +429,9 @@ export default function App() {
       };
       alert(reasonMap[payload.reason] ?? "Could not consume freeze.");
     }
-    await Promise.all([refetchHabits(), refetchMe(), refetchDailyQuest()]);
+    await Promise.all([refetchHabits(), refetchMe(), refetchDailyQuest(), refetchWeeklyBoss()]);
   };
 
-  const onClaimRecovery = async () => {
-    if (!isAuthed) return;
-    const res = await claimRecoveryQuestReward();
-    const payload = res?.data?.claimRecoveryQuestReward;
-    if (payload?.claimed && payload.awardedXp > 0) {
-      if (soundEnabled) playSoundCue("claim");
-      pushClaimHistory("Recovery Reward", `+${payload.awardedXp} XP`);
-      pushReward({
-        breakdown: { base: payload.awardedXp, streakBonus: 0, minutesBonus: 0, total: payload.awardedXp },
-        leveledUp: (payload.profile?.level ?? player.level) > player.level,
-        nextLevel: payload.profile?.level ?? player.level,
-      });
-      if (soundEnabled && (payload.profile?.level ?? player.level) > player.level) {
-        playSoundCue("level_up");
-      }
-      setChestReveal({
-        title: "Recovery Chest",
-        subtitle: "Comeback mission complete.",
-        xp: payload.awardedXp,
-        bonusText: "+1 freeze charge also awarded.",
-      });
-    }
-    await Promise.all([refetchMe(), refetchHabits(), refetchDailyQuest()]);
-  };
 
   const onAcknowledgeAchievements = () => {
     if (!isAuthed || !me?.id || unseenAchievementKeys.length === 0) return;
@@ -586,10 +532,12 @@ export default function App() {
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-100/18 via-transparent to-fuchsia-100/20" />
         <div className="absolute inset-0 opacity-[0.26] [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.10)_1px,transparent_0)] [background-size:24px_24px]" />
       </div>
-      <RewardToast reward={lastReward} onClose={clearLastReward} />
-      <AchievementToast unlocks={lastUnlocks} onClose={clearLastUnlocks} />
-      <LevelUpScene reward={lastReward} onClose={clearLastReward} />
-      <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />
+      <Suspense fallback={null}>
+        <RewardToast reward={lastReward} onClose={clearLastReward} />
+        <AchievementToast unlocks={lastUnlocks} onClose={clearLastUnlocks} />
+        <LevelUpScene reward={lastReward} onClose={clearLastReward} />
+        <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />
+      </Suspense>
 
       <div className="relative z-10 mx-auto max-w-4xl px-4 py-10">
         <div className="motion-fade-slide mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-sm">
@@ -740,6 +688,7 @@ export default function App() {
             active={questPanel}
             onChange={setQuestPanel}
             badges={{
+              weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
               safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
               quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
             }}
@@ -765,6 +714,22 @@ export default function App() {
             claiming={claimingDailyReward}
             onClaimReward={onClaimDailyReward}
             panelSkinClass={selectedSkin.bossPanelClass}
+            skinHud={selectedSkin.bossHud}
+          />
+        )}
+
+        {view === "quests" && questPanel === "weekly" && isAuthed && (
+          <WeeklyBossEncounter
+            encounter={weeklyBossEncounter}
+            habits={habits}
+            loading={weeklyBossLoading}
+            claiming={claimingWeeklyBoss}
+            onClaimReward={onClaimWeeklyBossReward}
+            onOpenSafety={() => setQuestPanel("safety")}
+            onOpenCreate={() => setQuestPanel("create")}
+            panelSkinClass={selectedSkin.bossPanelClass}
+            skinHud={selectedSkin.bossHud}
+            feedback={weeklyClaimFeedback}
           />
         )}
 

@@ -1,7 +1,8 @@
-import { ListChecks, PlusCircle, ShieldAlert, Target } from "lucide-react";
+import { Crown, ListChecks, PlusCircle, ShieldAlert, Target } from "lucide-react";
 
 const ITEMS = [
   { key: "today", label: "Today", icon: Target },
+  { key: "weekly", label: "Weekly", icon: Crown },
   { key: "safety", label: "Safety", icon: ShieldAlert },
   { key: "create", label: "Create", icon: PlusCircle },
   { key: "quests", label: "My Quests", icon: ListChecks },
@@ -9,7 +10,7 @@ const ITEMS = [
 
 export default function QuestPanelTabs({ active, onChange, badges = {} }) {
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
       {ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;

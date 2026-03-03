@@ -21,7 +21,8 @@
   - `profile`
   - claim panel via mini-map nav
 - Quests view includes:
-  - Daily Boss banner (daily chain UX)
+  - Daily Boss banner (daily chain UX, boss data from backend)
+  - Weekly Boss raid panel (harder mechanics/reward than daily)
   - Streak Combo Meter
   - Safety/recovery panel
   - Quest creation + templates
@@ -42,6 +43,10 @@
   - `claimReason`
   - `rewardClaimedAt`
   - `rewardAwardedXp`
+- Daily + weekly boss metadata from backend:
+  - `boss.name`, `boss.subtitle`, `boss.rarity`, `boss.difficulty`
+  - `boss.mechanics[]`
+  - `boss.buffs[]`
 - Optional sound cues toggle (check-in, claim, level-up).
 
 ## Skin System
@@ -51,7 +56,7 @@
   - unlock progress for locked skins
 - Equipped skin applies to:
   - habit cards
-  - daily boss panel
+  - daily/weekly boss panels
 - Local persistence key:
   - `habit-tracker:skin:<userId|guest>`
 
@@ -67,7 +72,8 @@
 - GraphQL ops:
   - `src/graphql/operations.js`
 - Key UI components:
-  - `src/components/DailyQuestChain.jsx`
+  - `src/components/bosses/DailyQuestChain.jsx`
+  - `src/components/bosses/WeeklyBossEncounter.jsx`
   - `src/components/HabitCard.jsx`
   - `src/components/ClaimCenter.jsx`
   - `src/components/ProfileScreen.jsx`
@@ -91,4 +97,5 @@
 ## Practical Development Notes
 - Backend may be local SQLite or Railway/Postgres; frontend should remain backend-agnostic.
 - Keep GraphQL operation fields aligned with backend schema updates.
+- Boss behavior/design changes should come from backend catalog data first, then UI polish.
 - Favor reusable components for game-like UX additions rather than app-wide one-off effects.
