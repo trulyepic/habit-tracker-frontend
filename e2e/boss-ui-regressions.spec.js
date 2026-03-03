@@ -218,7 +218,7 @@ test("boss badges, buff tooltip, and raid tools navigation work", async ({ page 
   await expect(page.getByText("Veteran", { exact: true }).first()).toBeVisible();
 
   const dailyBuff = page.getByRole("button", { name: /Temporal Armor/ }).first();
-  await dailyBuff.hover();
+  await dailyBuff.focus();
   await expect(page.getByText("Temporal Armor", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("Blocks burst damage until one objective is cleared.")).toBeVisible();
 
@@ -228,7 +228,7 @@ test("boss badges, buff tooltip, and raid tools navigation work", async ({ page 
   await expect(page.getByText("Challenging", { exact: true }).first()).toBeVisible();
 
   const weeklyBuff = page.getByRole("button", { name: /Attrition Pressure/ }).first();
-  await weeklyBuff.hover();
+  await weeklyBuff.focus();
   await expect(page.getByText("Attrition Pressure", { exact: true }).last()).toBeVisible();
 
   await page.getByRole("button", { name: "Safety Ops" }).click();
