@@ -5,7 +5,7 @@ export default function RewardChestReveal({ reveal, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]" />
 
       <div className="chest-reveal-scene relative w-full max-w-md overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-2xl">
         <button
@@ -55,4 +55,3 @@ export default function RewardChestReveal({ reveal, onClose }) {
     </div>
   );
 }
-

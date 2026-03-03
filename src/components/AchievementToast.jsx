@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Crown, Flame, Hourglass, Shield, Sparkles, Trophy } from "lucide-react";
 import { ACHIEVEMENTS, getRarityInfo } from "../gamification/achievements";
 
@@ -18,12 +18,6 @@ function achievementIcon(key) {
 }
 
 export default function AchievementToast({ unlocks, onClose }) {
-  useEffect(() => {
-    if (!unlocks?.length) return;
-    const t = setTimeout(() => onClose(), 3200);
-    return () => clearTimeout(t);
-  }, [unlocks, onClose]);
-
   const normalized = useMemo(() => {
     if (!unlocks?.length) return [];
 

@@ -1,13 +1,6 @@
-import { useEffect } from "react";
 import { Sparkles, Crown } from "lucide-react";
 
 export default function RewardToast({ reward, onClose }) {
-  useEffect(() => {
-    if (!reward) return;
-    const t = setTimeout(() => onClose(), 2500);
-    return () => clearTimeout(t);
-  }, [reward, onClose]);
-
   if (!reward) return null;
 
   const { breakdown, leveledUp, nextLevel } = reward;
