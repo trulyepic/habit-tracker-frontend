@@ -76,6 +76,8 @@ export const DAILY_QUEST_CHAIN = gql`
       rewardXp
       rewardClaimed
       rewardClaimable
+      rewardClaimedAt
+      rewardAwardedXp
       quests {
         key
         title
@@ -206,6 +208,7 @@ export const CLAIM_DAILY_QUEST_REWARD = gql`
   mutation ClaimDailyQuestReward {
     claimDailyQuestReward {
       claimed
+      claimReason
       awardedXp
       chain {
         dateKey
@@ -216,6 +219,8 @@ export const CLAIM_DAILY_QUEST_REWARD = gql`
         rewardXp
         rewardClaimed
         rewardClaimable
+        rewardClaimedAt
+        rewardAwardedXp
         quests {
           key
           title

@@ -143,6 +143,8 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
                 rewardXp: 50,
                 rewardClaimed: false,
                 rewardClaimable: false,
+                rewardClaimedAt: null,
+                rewardAwardedXp: 0,
                 quests: [],
               },
             },
@@ -265,11 +267,14 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByText("Guest mode (saved locally).")).toBeVisible();
+  await expect(page.getByText("Guest mode")).toBeVisible();
+  await expect(page.getByText("Saved locally")).toBeVisible();
 
   await page.getByRole("link", { name: "Login" }).click();
-  await expect(page.getByText("Logged in as")).toBeVisible();
   await expect(page.getByText("e2e_user")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
+  await page.getByRole("button", { name: "Claims" }).click();
+  await expect(page.getByText("Complete all daily objectives to unlock this reward.")).toBeVisible();
 
   await page.getByRole("button", { name: "Create" }).click();
   await page.getByPlaceholder("Habit name (unique)").fill("E2E Quest");
@@ -279,7 +284,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await expect(page.getByText("E2E Quest")).toBeVisible();
 
   await page.getByRole("button", { name: "Check-in" }).click();
-  await expect(page.getByText("Checked in today")).toBeVisible();
+  await expect(page.getByText("Checked in today", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Deactivate" }).click();
   await expect(page.getByText("Quest deactivated. Switched to All so it stays visible.")).toBeVisible();
