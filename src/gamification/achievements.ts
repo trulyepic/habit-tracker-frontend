@@ -2,6 +2,8 @@ export const ACHIEVEMENT_KEYS = [
   "first_step",
   "on_fire",
   "ten_hours",
+  "twenty_five_hours",
+  "hundred_hours",
   "iron_will",
   "centurion",
   "raid_initiate",
@@ -104,6 +106,20 @@ export const ACHIEVEMENTS: Record<
     rarity: "rare",
     bonusXp: 25,
   },
+  twenty_five_hours: {
+    title: "25 Hours Logged",
+    description: "Log 25 total hours across all habits.",
+    emoji: "🧭",
+    rarity: "epic",
+    bonusXp: 75,
+  },
+  hundred_hours: {
+    title: "100 Hours Logged",
+    description: "Log 100 total hours across all habits.",
+    emoji: "⌛",
+    rarity: "legendary",
+    bonusXp: 200,
+  },
   iron_will: {
     title: "Iron Will",
     description: "Reach a 30-day streak on any habit.",
@@ -170,6 +186,10 @@ export function shouldUnlockAchievement(key: AchievementKey, ctx: AchievementCon
       return ctx.maxStreak >= 7;
     case "ten_hours":
       return ctx.totalMinutesLogged >= 600;
+    case "twenty_five_hours":
+      return ctx.totalMinutesLogged >= 1500;
+    case "hundred_hours":
+      return ctx.totalMinutesLogged >= 6000;
     case "iron_will":
       return ctx.maxStreak >= 30;
     case "centurion":
@@ -204,6 +224,16 @@ export function getAchievementProgress(
       return {
         progress01: clamp01(ctx.totalMinutesLogged / 600),
         progressText: `${Math.min(ctx.totalMinutesLogged, 600)} / 600 minutes`,
+      };
+    case "twenty_five_hours":
+      return {
+        progress01: clamp01(ctx.totalMinutesLogged / 1500),
+        progressText: `${Math.min(ctx.totalMinutesLogged, 1500)} / 1500 minutes`,
+      };
+    case "hundred_hours":
+      return {
+        progress01: clamp01(ctx.totalMinutesLogged / 6000),
+        progressText: `${Math.min(ctx.totalMinutesLogged, 6000)} / 6000 minutes`,
       };
     case "iron_will":
       return {

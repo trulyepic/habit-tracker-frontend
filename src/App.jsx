@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@apollo/client/react";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Flame, ShieldCheck, Snowflake, Sparkles, Swords, Volume2, VolumeX } from "lucide-react";
 
 import AuthBar from "./components/AuthBar";
@@ -39,6 +39,7 @@ import StreakComboMeter from "./components/StreakComboMeter";
 import { coerceUnlockedMap } from "./gamification/achievements";
 import { resolveTitleState, resolveTitleStateFromServerProfile } from "./gamification/titles";
 import { getUnlockedSkins, resolveSkin } from "./gamification/skins";
+import { formatCountdown, msUntilNextLocalMidnight, msUntilWeeklyReset } from "./lib/resetTimers";
 
 const RewardToast = lazy(() => import("./components/RewardToast"));
 const AchievementToast = lazy(() => import("./components/AchievementToast"));
@@ -50,6 +51,294 @@ const STARTER_QUESTS = [
   { name: "Focus Sprint", description: "One 25-minute deep work sprint before noon." },
   { name: "Evening Wind-down", description: "No phone for 30 minutes before bed." },
 ];
+const CHECKIN_MINUTES_MIN = 1;
+const CHECKIN_MINUTES_MAX = 720;
+
+const SKIN_UI = {
+  classic: {
+    heroClass: "from-slate-900 via-slate-800 to-slate-900",
+    orb1: "bg-cyan-300/40",
+    orb2: "bg-fuchsia-300/35",
+    orb3: "bg-amber-300/28",
+    veil: "from-cyan-100/18 via-transparent to-fuchsia-100/20",
+    navActiveClass: "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm",
+    tabActiveClass: "border-slate-900 bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm",
+    claimPanelClass: "border-slate-200 bg-white",
+  },
+  ember: {
+    heroClass: "from-rose-900 via-red-800 to-orange-700",
+    orb1: "bg-rose-300/35",
+    orb2: "bg-orange-300/30",
+    orb3: "bg-amber-300/28",
+    veil: "from-rose-100/18 via-transparent to-orange-100/20",
+    navActiveClass: "bg-gradient-to-r from-rose-700 to-orange-700 text-white shadow-sm",
+    tabActiveClass: "border-rose-700 bg-gradient-to-r from-rose-700 to-orange-700 text-white shadow-sm",
+    claimPanelClass: "border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50",
+  },
+  chrono: {
+    heroClass: "from-sky-900 via-cyan-800 to-blue-800",
+    orb1: "bg-cyan-300/40",
+    orb2: "bg-sky-300/35",
+    orb3: "bg-blue-300/25",
+    veil: "from-cyan-100/18 via-transparent to-sky-100/20",
+    navActiveClass: "bg-gradient-to-r from-cyan-700 to-blue-700 text-white shadow-sm",
+    tabActiveClass: "border-cyan-700 bg-gradient-to-r from-cyan-700 to-blue-700 text-white shadow-sm",
+    claimPanelClass: "border-sky-200 bg-gradient-to-br from-cyan-50 to-sky-50",
+  },
+  aegis: {
+    heroClass: "from-fuchsia-900 via-violet-800 to-indigo-800",
+    orb1: "bg-fuchsia-300/35",
+    orb2: "bg-violet-300/30",
+    orb3: "bg-indigo-300/25",
+    veil: "from-fuchsia-100/20 via-transparent to-violet-100/20",
+    navActiveClass: "bg-gradient-to-r from-fuchsia-700 to-violet-700 text-white shadow-sm",
+    tabActiveClass: "border-fuchsia-700 bg-gradient-to-r from-fuchsia-700 to-violet-700 text-white shadow-sm",
+    claimPanelClass: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-violet-50",
+  },
+  sunforge: {
+    heroClass: "from-orange-900 via-amber-800 to-yellow-700",
+    orb1: "bg-orange-300/35",
+    orb2: "bg-amber-300/30",
+    orb3: "bg-yellow-300/25",
+    veil: "from-orange-100/20 via-transparent to-yellow-100/20",
+    navActiveClass: "bg-gradient-to-r from-orange-700 to-amber-700 text-white shadow-sm",
+    tabActiveClass: "border-orange-700 bg-gradient-to-r from-orange-700 to-amber-700 text-white shadow-sm",
+    claimPanelClass: "border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50",
+  },
+  sovereign: {
+    heroClass: "from-amber-900 via-orange-800 to-yellow-700",
+    orb1: "bg-amber-300/35",
+    orb2: "bg-yellow-300/30",
+    orb3: "bg-orange-300/25",
+    veil: "from-amber-100/20 via-transparent to-yellow-100/20",
+    navActiveClass: "bg-gradient-to-r from-amber-700 to-orange-700 text-white shadow-sm",
+    tabActiveClass: "border-amber-700 bg-gradient-to-r from-amber-700 to-orange-700 text-white shadow-sm",
+    claimPanelClass: "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50",
+  },
+  voidrunner: {
+    heroClass: "from-indigo-900 via-violet-900 to-fuchsia-800",
+    orb1: "bg-indigo-300/35",
+    orb2: "bg-violet-300/30",
+    orb3: "bg-fuchsia-300/25",
+    veil: "from-indigo-100/20 via-transparent to-fuchsia-100/20",
+    navActiveClass: "bg-gradient-to-r from-indigo-700 to-violet-700 text-white shadow-sm",
+    tabActiveClass: "border-indigo-700 bg-gradient-to-r from-indigo-700 to-violet-700 text-white shadow-sm",
+    claimPanelClass: "border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50",
+  },
+  behemoth: {
+    heroClass: "from-emerald-900 via-teal-900 to-cyan-800",
+    orb1: "bg-emerald-300/35",
+    orb2: "bg-teal-300/30",
+    orb3: "bg-cyan-300/25",
+    veil: "from-emerald-100/20 via-transparent to-cyan-100/20",
+    navActiveClass: "bg-gradient-to-r from-emerald-700 to-teal-700 text-white shadow-sm",
+    tabActiveClass: "border-emerald-700 bg-gradient-to-r from-emerald-700 to-teal-700 text-white shadow-sm",
+    claimPanelClass: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-cyan-50",
+  },
+  astral: {
+    heroClass: "from-sky-900 via-blue-900 to-indigo-800",
+    orb1: "bg-sky-300/35",
+    orb2: "bg-blue-300/30",
+    orb3: "bg-indigo-300/25",
+    veil: "from-sky-100/20 via-transparent to-indigo-100/20",
+    navActiveClass: "bg-gradient-to-r from-sky-700 to-indigo-700 text-white shadow-sm",
+    tabActiveClass: "border-sky-700 bg-gradient-to-r from-sky-700 to-indigo-700 text-white shadow-sm",
+    claimPanelClass: "border-sky-200 bg-gradient-to-br from-sky-50 to-indigo-50",
+  },
+  starlit: {
+    heroClass: "from-indigo-950 via-sky-900 to-cyan-800",
+    orb1: "bg-indigo-300/35",
+    orb2: "bg-sky-300/30",
+    orb3: "bg-cyan-300/25",
+    veil: "from-indigo-100/20 via-transparent to-cyan-100/20",
+    navActiveClass: "bg-gradient-to-r from-indigo-700 to-sky-700 text-white shadow-sm",
+    tabActiveClass: "border-indigo-700 bg-gradient-to-r from-indigo-700 to-sky-700 text-white shadow-sm",
+    claimPanelClass: "border-indigo-200 bg-gradient-to-br from-indigo-50 to-sky-50",
+  },
+};
+
+const QUEST_DASHBOARD_UI = {
+  classic: {
+    statBase: "border-slate-200 bg-white",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-fuchsia-200 bg-fuchsia-50",
+    winPanel: "border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50",
+    winLabel: "text-indigo-700",
+    winPrimaryBtn: "border-indigo-300 text-indigo-700 hover:bg-indigo-50",
+    winSecondaryBtn: "border-slate-300 text-slate-700 hover:bg-slate-50",
+    activeLabel: "text-slate-500",
+    activeValue: "text-slate-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-fuchsia-700",
+    powerValue: "text-fuchsia-800",
+  },
+  ember: {
+    statBase: "border-rose-200 bg-rose-50/55",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-rose-200 bg-orange-50",
+    winPanel: "border-rose-200 bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50",
+    winLabel: "text-rose-700",
+    winPrimaryBtn: "border-rose-300 text-rose-700 hover:bg-rose-50",
+    winSecondaryBtn: "border-orange-300 text-orange-700 hover:bg-orange-50",
+    activeLabel: "text-rose-700",
+    activeValue: "text-rose-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-orange-700",
+    powerValue: "text-orange-900",
+  },
+  chrono: {
+    statBase: "border-sky-200 bg-cyan-50/55",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-sky-200 bg-sky-50",
+    winPanel: "border-sky-200 bg-gradient-to-r from-cyan-50 via-sky-50 to-blue-50",
+    winLabel: "text-sky-700",
+    winPrimaryBtn: "border-sky-300 text-sky-700 hover:bg-sky-50",
+    winSecondaryBtn: "border-cyan-300 text-cyan-700 hover:bg-cyan-50",
+    activeLabel: "text-cyan-700",
+    activeValue: "text-cyan-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-sky-700",
+    powerValue: "text-sky-900",
+  },
+  aegis: {
+    statBase: "border-fuchsia-200 bg-fuchsia-50/55",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-violet-200 bg-violet-50",
+    winPanel: "border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 via-violet-50 to-indigo-50",
+    winLabel: "text-fuchsia-700",
+    winPrimaryBtn: "border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-50",
+    winSecondaryBtn: "border-violet-300 text-violet-700 hover:bg-violet-50",
+    activeLabel: "text-fuchsia-700",
+    activeValue: "text-fuchsia-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-violet-700",
+    powerValue: "text-violet-900",
+  },
+  sunforge: {
+    statBase: "border-orange-200 bg-orange-50/60",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-yellow-200 bg-yellow-50",
+    winPanel: "border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50",
+    winLabel: "text-orange-700",
+    winPrimaryBtn: "border-orange-300 text-orange-700 hover:bg-orange-50",
+    winSecondaryBtn: "border-amber-300 text-amber-700 hover:bg-amber-50",
+    activeLabel: "text-orange-700",
+    activeValue: "text-orange-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-yellow-700",
+    powerValue: "text-yellow-900",
+  },
+  sovereign: {
+    statBase: "border-amber-200 bg-amber-50/60",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-orange-200 bg-orange-50",
+    statPower: "border-yellow-200 bg-yellow-50",
+    winPanel: "border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50",
+    winLabel: "text-amber-700",
+    winPrimaryBtn: "border-amber-300 text-amber-700 hover:bg-amber-50",
+    winSecondaryBtn: "border-orange-300 text-orange-700 hover:bg-orange-50",
+    activeLabel: "text-amber-700",
+    activeValue: "text-amber-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-orange-700",
+    pendingValue: "text-orange-900",
+    powerLabel: "text-yellow-700",
+    powerValue: "text-yellow-900",
+  },
+  voidrunner: {
+    statBase: "border-indigo-200 bg-indigo-50/55",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-violet-200 bg-violet-50",
+    winPanel: "border-indigo-200 bg-gradient-to-r from-indigo-50 via-violet-50 to-fuchsia-50",
+    winLabel: "text-indigo-700",
+    winPrimaryBtn: "border-indigo-300 text-indigo-700 hover:bg-indigo-50",
+    winSecondaryBtn: "border-violet-300 text-violet-700 hover:bg-violet-50",
+    activeLabel: "text-indigo-700",
+    activeValue: "text-indigo-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-violet-700",
+    powerValue: "text-violet-900",
+  },
+  behemoth: {
+    statBase: "border-emerald-200 bg-emerald-50/55",
+    statChecked: "border-teal-200 bg-teal-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-cyan-200 bg-cyan-50",
+    winPanel: "border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50",
+    winLabel: "text-emerald-700",
+    winPrimaryBtn: "border-emerald-300 text-emerald-700 hover:bg-emerald-50",
+    winSecondaryBtn: "border-teal-300 text-teal-700 hover:bg-teal-50",
+    activeLabel: "text-emerald-700",
+    activeValue: "text-emerald-900",
+    checkedLabel: "text-teal-700",
+    checkedValue: "text-teal-900",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-cyan-700",
+    powerValue: "text-cyan-900",
+  },
+  astral: {
+    statBase: "border-blue-200 bg-sky-50/55",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-indigo-200 bg-indigo-50",
+    winPanel: "border-blue-200 bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50",
+    winLabel: "text-blue-700",
+    winPrimaryBtn: "border-blue-300 text-blue-700 hover:bg-blue-50",
+    winSecondaryBtn: "border-indigo-300 text-indigo-700 hover:bg-indigo-50",
+    activeLabel: "text-blue-700",
+    activeValue: "text-blue-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-indigo-700",
+    powerValue: "text-indigo-900",
+  },
+  starlit: {
+    statBase: "border-indigo-200 bg-indigo-50/60",
+    statChecked: "border-emerald-200 bg-emerald-50",
+    statPending: "border-amber-200 bg-amber-50",
+    statPower: "border-sky-200 bg-sky-50",
+    winPanel: "border-indigo-200 bg-gradient-to-r from-indigo-50 via-sky-50 to-cyan-50",
+    winLabel: "text-indigo-700",
+    winPrimaryBtn: "border-indigo-300 text-indigo-700 hover:bg-indigo-50",
+    winSecondaryBtn: "border-sky-300 text-sky-700 hover:bg-sky-50",
+    activeLabel: "text-indigo-700",
+    activeValue: "text-indigo-900",
+    checkedLabel: "text-emerald-700",
+    checkedValue: "text-emerald-800",
+    pendingLabel: "text-amber-700",
+    pendingValue: "text-amber-800",
+    powerLabel: "text-sky-700",
+    powerValue: "text-sky-900",
+  },
+};
 
 export default function App() {
   const { me, isAuthed, refetchMe } = useAuth();
@@ -169,8 +458,11 @@ export default function App() {
     return localStorage.getItem("habit-tracker:sound-enabled") !== "false";
   });
   const [selectedSkinKey, setSelectedSkinKey] = useState("classic");
+  const [skinTransitionActive, setSkinTransitionActive] = useState(false);
   const [seenAchievementKeys, setSeenAchievementKeys] = useState([]);
   const [deactivateHint, setDeactivateHint] = useState("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const hasSeenInitialSkin = useRef(false);
 
   const creating = isAuthed ? creatingAuthed : false;
   const deleting = isAuthed ? deletingAuthed : false;
@@ -217,17 +509,46 @@ export default function App() {
   const unlockedSkins = useMemo(() => getUnlockedSkins(skinUnlockSource), [skinUnlockSource]);
   const unlockedSkinKeys = useMemo(() => unlockedSkins.map((s) => s.key), [unlockedSkins]);
   const selectedSkin = useMemo(() => resolveSkin(selectedSkinKey), [selectedSkinKey]);
+  const selectedSkinUi = useMemo(
+    () => SKIN_UI[selectedSkin?.key] ?? SKIN_UI.classic,
+    [selectedSkin?.key]
+  );
+  const questDashboardUi = useMemo(
+    () => QUEST_DASHBOARD_UI[selectedSkin?.key] ?? QUEST_DASHBOARD_UI.classic,
+    [selectedSkin?.key]
+  );
   const skinStorageKey = `habit-tracker:skin:${isAuthed && me?.id ? me.id : "guest"}`;
   const claimableCount =
     Number(Boolean(dailyQuestChain?.rewardClaimable)) +
     Number(Boolean(weeklyBossEncounter?.rewardClaimable)) +
     Number(Boolean(recoveryQuest?.claimable)) +
     unseenAchievementKeys.length;
+  const dailyResetLabel = useMemo(
+    () => formatCountdown(msUntilNextLocalMidnight(new Date(nowMs))),
+    [nowMs]
+  );
+  const weeklyResetLabel = useMemo(
+    () => formatCountdown(msUntilWeeklyReset(weeklyBossEncounter?.weekEnd, new Date(nowMs))),
+    [weeklyBossEncounter?.weekEnd, nowMs]
+  );
 
   const atRiskHabits = useMemo(
     () => habits.filter((h) => h.isActive && !h.checkedInToday && (h.currentStreak ?? 0) > 0),
     [habits]
   );
+  const questboardStats = useMemo(() => {
+    const active = habits.filter((h) => h.isActive);
+    const checkedToday = active.filter((h) => h.checkedInToday).length;
+    const pendingToday = active.length - checkedToday;
+    const streakPower = active.reduce((sum, h) => sum + Math.max(0, Number(h.currentStreak ?? 0)), 0);
+    return {
+      activeCount: active.length,
+      checkedToday,
+      pendingToday,
+      streakPower,
+      atRiskCount: atRiskHabits.length,
+    };
+  }, [habits, atRiskHabits.length]);
 
   const titleState = useMemo(() => {
     if (isAuthed) {
@@ -278,8 +599,23 @@ export default function App() {
   }, [skinStorageKey, selectedSkinKey]);
 
   useEffect(() => {
+    if (!hasSeenInitialSkin.current) {
+      hasSeenInitialSkin.current = true;
+      return;
+    }
+    setSkinTransitionActive(true);
+    const id = window.setTimeout(() => setSkinTransitionActive(false), 420);
+    return () => window.clearTimeout(id);
+  }, [selectedSkinKey]);
+
+  useEffect(() => {
     localStorage.setItem("habit-tracker:sound-enabled", soundEnabled ? "true" : "false");
   }, [soundEnabled]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!soundEnabled) return;
@@ -352,14 +688,24 @@ export default function App() {
   };
 
   const onCheckIn = async (habitId, minutesSpent) => {
+    const safeMinutes = Number(minutesSpent);
+    if (
+      !Number.isInteger(safeMinutes) ||
+      safeMinutes < CHECKIN_MINUTES_MIN ||
+      safeMinutes > CHECKIN_MINUTES_MAX
+    ) {
+      alert(`Enter minutes between ${CHECKIN_MINUTES_MIN} and ${CHECKIN_MINUTES_MAX} to check in.`);
+      return;
+    }
+
     if (!isAuthed) {
       const habit = guestHabits.find((h) => h.id === habitId);
-      const updatedHabits = guestHabits.map((h) => (h.id === habitId ? guestApplyCheckin(h, { minutesSpent }) : h));
+      const updatedHabits = guestHabits.map((h) => (h.id === habitId ? guestApplyCheckin(h, { minutesSpent: safeMinutes }) : h));
       setGuestHabitsAndPersist(updatedHabits);
 
       awardForCheckin({
         currentStreak: habit?.currentStreak ?? 0,
-        minutesSpent: minutesSpent ?? null,
+        minutesSpent: safeMinutes,
         habits: updatedHabits.map((h) => ({
           id: h.id,
           checkedInToday: h.checkedInToday,
@@ -372,7 +718,7 @@ export default function App() {
     }
 
     const previousUnlocked = me?.playerProfile?.achievementsUnlocked ?? {};
-    const result = await checkInToday({ variables: { habitId, minutesSpent: minutesSpent ?? null } });
+    const result = await checkInToday({ variables: { habitId, minutesSpent: safeMinutes } });
 
     const payload = result?.data?.checkInToday;
     const awardedXp = payload?.checkin?.xpAwarded;
@@ -532,11 +878,16 @@ export default function App() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50/40">
       <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="ambient-orb-1 absolute -left-24 top-16 h-80 w-80 rounded-full bg-cyan-300/40 blur-3xl" />
-        <div className="ambient-orb-2 absolute right-[-8rem] top-28 h-[24rem] w-[24rem] rounded-full bg-fuchsia-300/35 blur-3xl" />
-        <div className="ambient-orb-1 absolute left-1/3 top-[30rem] h-72 w-72 rounded-full bg-amber-300/28 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-100/18 via-transparent to-fuchsia-100/20" />
+        <div className={`ambient-orb-1 absolute -left-24 top-16 h-80 w-80 rounded-full blur-3xl ${selectedSkinUi.orb1}`} />
+        <div className={`ambient-orb-2 absolute right-[-8rem] top-28 h-[24rem] w-[24rem] rounded-full blur-3xl ${selectedSkinUi.orb2}`} />
+        <div className={`ambient-orb-1 absolute left-1/3 top-[30rem] h-72 w-72 rounded-full blur-3xl ${selectedSkinUi.orb3}`} />
+        <div className={`absolute inset-0 bg-gradient-to-br ${selectedSkinUi.veil}`} />
         <div className="absolute inset-0 opacity-[0.26] [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.10)_1px,transparent_0)] [background-size:24px_24px]" />
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${selectedSkinUi.veil} transition-opacity duration-500 ease-out ${
+            skinTransitionActive ? "opacity-70" : "opacity-0"
+          }`}
+        />
       </div>
       <Suspense fallback={null}>
         {hasRewardToast && <RewardToast reward={lastReward} onClose={clearLastReward} />}
@@ -546,11 +897,13 @@ export default function App() {
       </Suspense>
 
       <div className="relative z-10 mx-auto max-w-4xl px-4 py-10">
-        <div className="motion-fade-slide mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-sm">
+        <div className={`motion-fade-slide mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r p-6 text-white shadow-sm ${selectedSkinUi.heroClass}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Quest Habit Arena</h1>
-              <p className="mt-1 text-sm text-slate-200">Build streaks, earn XP, and unlock rare achievements every day.</p>
+              <h1 className="text-3xl font-bold tracking-tight">Habit Arena</h1>
+              <p className="mt-1 text-sm text-slate-200">
+                Turn your habits into quests, build streaks, earn XP, and unlock rare achievements.
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
                   <Flame className="h-3.5 w-3.5" />
@@ -577,6 +930,14 @@ export default function App() {
                   {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
                   Sound {soundEnabled ? "On" : "Off"}
                 </button>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
+                  <Compass className="h-3.5 w-3.5" />
+                  Daily reset {dailyResetLabel}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
+                  <Swords className="h-3.5 w-3.5" />
+                  Weekly reset {weeklyResetLabel}
+                </span>
               </div>
             </div>
             <div className="hidden items-center gap-3 sm:flex">
@@ -621,6 +982,7 @@ export default function App() {
             activeView={view}
             claimPanelOpen={claimCenterOpen}
             claimableCount={claimableCount}
+            activeClassName={selectedSkinUi.navActiveClass}
             onSelect={(key) => {
               if (key === "claims") {
                 setClaimCenterOpen((v) => !v);
@@ -632,6 +994,9 @@ export default function App() {
           />
           {view === "quests" && (
             <div className="flex items-center gap-2">
+              <span className="hidden rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex">
+                Daily reset in {dailyResetLabel}
+              </span>
               <button
                 onClick={onRefresh}
                 disabled={!isAuthed}
@@ -652,6 +1017,7 @@ export default function App() {
               isOpen={claimCenterOpen}
               onToggle={() => setClaimCenterOpen(false)}
               showTrigger={false}
+              panelClassName={selectedSkinUi.claimPanelClass}
               dailyClaimable={Boolean(dailyQuestChain?.rewardClaimable)}
               dailyRewardXp={dailyQuestChain?.rewardXp ?? 0}
               dailyClaimStatusText={dailyClaimStatusText}
@@ -661,6 +1027,8 @@ export default function App() {
               recoveryRewardXp={recoveryQuest?.rewardXp ?? 0}
               onClaimRecovery={onClaimRecovery}
               claimingRecovery={claimingRecovery}
+              dailyResetLabel={dailyResetLabel}
+              weeklyResetLabel={weeklyResetLabel}
               newAchievementsCount={unseenAchievementKeys.length}
               onAcknowledgeAchievements={onAcknowledgeAchievements}
               history={claimHistory}
@@ -674,6 +1042,12 @@ export default function App() {
             player={player}
             playerProfile={me?.playerProfile ?? null}
             titleState={titleState}
+            skinKey={selectedSkinKey}
+            skinName={selectedSkin.name}
+            dailyQuestChain={dailyQuestChain}
+            weeklyBossEncounter={weeklyBossEncounter}
+            recoveryQuest={recoveryQuest}
+            freezeCharges={freezeCharges}
             recentActivity={recentActivity}
             recentActivityLoading={recentActivityLoading}
             recentActivityHasMore={recentActivityHasMore}
@@ -682,6 +1056,8 @@ export default function App() {
             unlockedSkinKeys={unlockedSkinKeys}
             selectedSkinKey={selectedSkinKey}
             onSelectSkin={setSelectedSkinKey}
+            dailyResetLabel={dailyResetLabel}
+            weeklyResetLabel={weeklyResetLabel}
           />
         )}
 
@@ -693,12 +1069,75 @@ export default function App() {
           <QuestPanelTabs
             active={questPanel}
             onChange={setQuestPanel}
+            activeClassName={selectedSkinUi.tabActiveClass}
             badges={{
               weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
               safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
               quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
             }}
           />
+        )}
+        {view === "quests" && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+            <span>My Quests is your habit list. Create habits, check in daily, and keep your chain alive.</span>
+            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              Next daily reset: {dailyResetLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              Next weekly reset: {weeklyResetLabel}
+            </span>
+          </div>
+        )}
+        {view === "quests" && (
+          <div className="motion-fade-slide mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={`rounded-xl border px-3 py-2 ${questDashboardUi.statBase}`}>
+              <div className={`text-[11px] font-semibold uppercase tracking-wide ${questDashboardUi.activeLabel}`}>Active quests</div>
+              <div className={`mt-1 text-base font-bold ${questDashboardUi.activeValue}`}>{questboardStats.activeCount}</div>
+            </div>
+            <div className={`rounded-xl border px-3 py-2 ${questDashboardUi.statChecked}`}>
+              <div className={`text-[11px] font-semibold uppercase tracking-wide ${questDashboardUi.checkedLabel}`}>Checked today</div>
+              <div className={`mt-1 text-base font-bold ${questDashboardUi.checkedValue}`}>{questboardStats.checkedToday}</div>
+            </div>
+            <div className={`rounded-xl border px-3 py-2 ${questDashboardUi.statPending}`}>
+              <div className={`text-[11px] font-semibold uppercase tracking-wide ${questDashboardUi.pendingLabel}`}>Pending today</div>
+              <div className={`mt-1 text-base font-bold ${questDashboardUi.pendingValue}`}>{questboardStats.pendingToday}</div>
+            </div>
+            <div className={`rounded-xl border px-3 py-2 ${questDashboardUi.statPower}`}>
+              <div className={`text-[11px] font-semibold uppercase tracking-wide ${questDashboardUi.powerLabel}`}>Streak power</div>
+              <div className={`mt-1 text-base font-bold ${questDashboardUi.powerValue}`}>{questboardStats.streakPower}</div>
+            </div>
+          </div>
+        )}
+        {view === "quests" && (
+          <div className={`motion-fade-slide mb-4 rounded-2xl border px-4 py-3 shadow-sm ${questDashboardUi.winPanel}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className={`text-xs font-semibold uppercase tracking-wide ${questDashboardUi.winLabel}`}>Today win condition</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  Clear {questboardStats.pendingToday} pending quest{questboardStats.pendingToday === 1 ? "" : "s"} and chip away at the daily boss.
+                </div>
+                <div className="mt-1 text-xs text-slate-600">
+                  Daily boss HP remaining: {Math.max(0, 100 - Number(dailyQuestChain?.completionPct || 0))}%.
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuestPanel("today")}
+                  className={`rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm ${questDashboardUi.winPrimaryBtn}`}
+                >
+                  Open Daily Boss
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestPanel("create")}
+                  className={`rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm ${questDashboardUi.winSecondaryBtn}`}
+                >
+                  Create Quest
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {view === "quests" && isAuthed && loading && (
@@ -747,8 +1186,8 @@ export default function App() {
                   <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Streak Safety</div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">
                     {atRiskHabits.length > 0
-                      ? `${atRiskHabits.length} quest${atRiskHabits.length > 1 ? "s are" : " is"} at risk today`
-                      : "No quests at risk right now"}
+                      ? `${atRiskHabits.length} habit${atRiskHabits.length > 1 ? "s are" : " is"} at risk today`
+                      : "No habits at risk right now"}
                   </div>
                   <div className="mt-1 text-xs text-slate-600">Use freeze charges to protect streaks when you cannot check in.</div>
                 </div>
@@ -822,8 +1261,8 @@ export default function App() {
 
         {view === "quests" && questPanel === "create" && (
           <div className="motion-fade-slide mb-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Create New Quest</h2>
-            <p className="mt-1 text-xs text-slate-500">Add one focused habit and keep the chain alive.</p>
+            <h2 className="text-base font-semibold text-slate-900">Create New Habit</h2>
+            <p className="mt-1 text-xs text-slate-500">Every habit is treated as a quest in your arena.</p>
 
             <form onSubmit={onCreate} className="mt-4 grid gap-3">
               <input
@@ -850,7 +1289,7 @@ export default function App() {
             <div className="mt-4">
               <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
                 <Compass className="h-3.5 w-3.5" />
-                Starter Quest Ideas
+                Starter Habit Ideas
               </div>
               <div className="flex flex-wrap gap-2">
                 {STARTER_QUESTS.map((q) => (
@@ -873,6 +1312,42 @@ export default function App() {
 
         {view === "quests" && questPanel === "quests" && (
           <>
+            <div className="motion-fade-slide mb-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50 p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-700">
+                    Habit Questboard
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    Train real habits through your quest log.
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600">
+                    Every quest card is a habit. Check-ins, streaks, and safety all apply here.
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-700">
+                    <span className="font-semibold text-slate-900">{questboardStats.activeCount}</span> active
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-emerald-700">
+                    <span className="font-semibold">{questboardStats.checkedToday}</span> done today
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-700">
+                    <span className="font-semibold">{questboardStats.pendingToday}</span> pending
+                  </div>
+                  <div className="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-2.5 py-1.5 text-fuchsia-700">
+                    <span className="font-semibold">{questboardStats.streakPower}</span> streak power
+                  </div>
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-sky-700">
+                    <span className="font-semibold">{freezeCharges}</span> freeze charges
+                  </div>
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-rose-700">
+                    <span className="font-semibold">{questboardStats.atRiskCount}</span> at risk
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="motion-fade-slide mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -932,14 +1407,14 @@ export default function App() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
                   <div className="flex items-center gap-2 font-semibold text-slate-800">
                     <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                    Your quest log is empty
+                    Your habit log is empty
                   </div>
-                  <p className="mt-1 text-slate-500">Create your first quest or tap a starter template in the Create tab.</p>
+                  <p className="mt-1 text-slate-500">Create your first habit or tap a starter template in the Create tab.</p>
                 </div>
               )}
 
               {habits.length > 0 && displayedHabits.length === 0 && (
-                <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">No quests match the current filter.</div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">No habits match the current filter.</div>
               )}
             </div>
 
@@ -951,7 +1426,7 @@ export default function App() {
 
         {view === "quests" && questPanel === "safety" && !isAuthed && (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            Login to use streak freezes and recovery quests.
+            Login to use streak freezes and recovery missions.
           </div>
         )}
 

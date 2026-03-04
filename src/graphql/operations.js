@@ -178,7 +178,7 @@ export const CREATE_HABIT = gql`
 `;
 
 export const CHECK_IN_TODAY = gql`
-  mutation CheckInToday($habitId: ID!, $minutesSpent: Int) {
+  mutation CheckInToday($habitId: ID!, $minutesSpent: Int!) {
     checkInToday(habitId: $habitId, minutesSpent: $minutesSpent) {
       created
       checkin {

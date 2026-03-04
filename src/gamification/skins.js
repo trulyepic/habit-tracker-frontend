@@ -62,6 +62,21 @@ export const QUEST_SKINS = [
     },
   },
   {
+    key: "sunforge",
+    name: "Sunforge Mantle",
+    description: "Unlocked by 25 Hours Logged.",
+    unlockAchievement: "twenty_five_hours",
+    previewClass: "from-orange-50 via-amber-50 to-yellow-100 border-orange-300",
+    cardClass: "border-orange-300 bg-gradient-to-br from-orange-50/95 via-amber-50/90 to-yellow-100/85",
+    bossPanelClass: "border-orange-300 bg-gradient-to-br from-orange-50/80 via-amber-50/75 to-yellow-100/70",
+    bossHud: {
+      hpFillClass: "from-orange-300 via-amber-200 to-yellow-100",
+      badgeRingClass: "ring-orange-200/80",
+      focusRingClass: "ring-orange-300",
+      anticipationGlowClass: "shadow-[0_0_0_2px_rgba(249,115,22,0.22),0_0_24px_rgba(245,158,11,0.3)]",
+    },
+  },
+  {
     key: "sovereign",
     name: "Sovereign Crest",
     description: "Unlocked by Centurion (100 check-ins).",
@@ -74,6 +89,21 @@ export const QUEST_SKINS = [
       badgeRingClass: "ring-amber-200/80",
       focusRingClass: "ring-amber-300",
       anticipationGlowClass: "shadow-[0_0_0_2px_rgba(245,158,11,0.2),0_0_24px_rgba(251,191,36,0.3)]",
+    },
+  },
+  {
+    key: "starlit",
+    name: "Starlit Reliquary",
+    description: "Unlocked by 100 Hours Logged.",
+    unlockAchievement: "hundred_hours",
+    previewClass: "from-slate-900 via-indigo-900 to-sky-800 border-indigo-400",
+    cardClass: "border-indigo-300 bg-gradient-to-br from-indigo-100/95 via-sky-100/90 to-cyan-100/85",
+    bossPanelClass: "border-indigo-300 bg-gradient-to-br from-indigo-100/80 via-sky-100/75 to-cyan-100/70",
+    bossHud: {
+      hpFillClass: "from-indigo-300 via-sky-200 to-cyan-100",
+      badgeRingClass: "ring-indigo-200/80",
+      focusRingClass: "ring-indigo-300",
+      anticipationGlowClass: "shadow-[0_0_0_2px_rgba(99,102,241,0.24),0_0_24px_rgba(56,189,248,0.32)]",
     },
   },
   {

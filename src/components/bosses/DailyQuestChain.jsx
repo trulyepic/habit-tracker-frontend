@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Crown, Flame, Lock, ShieldCheck, Sparkles, Swords, Target, Trophy } from "lucide-react";
 import { buildDailyQuestChain } from "../../gamification/dailyQuests";
+import { formatCountdown, msUntilNextLocalMidnight } from "../../lib/resetTimers";
 import { buffStateMeta, resolveBuffState } from "./buffLifecycle";
 import { getBuffTone, getDifficultyToken, getRarityToken, STAT_CARD_TONES } from "./uiTokens";
 
@@ -139,6 +140,8 @@ export default function DailyQuestChain({
   const chain = isAuthed && serverChain ? serverChain : localChain;
   const [showClaimFx, setShowClaimFx] = useState(false);
   const [encounterTimeline, setEncounterTimeline] = useState([]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [openBuffKey, setOpenBuffKey] = useState(null);
   const prevClaimedRef = useRef(Boolean(chain.rewardClaimed));
   const prevCompletionPctRef = useRef(Number(chain.completionPct || 0));
   const prevCompletedCountRef = useRef(Number(chain.completedCount || 0));
@@ -192,6 +195,15 @@ export default function DailyQuestChain({
     pushTimeline("Reward claimed", "claim");
   }, [chain.rewardClaimed]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    setOpenBuffKey(null);
+  }, [chain?.dateKey, chain?.boss?.key]);
+
   const fallbackBoss = resolveBossProfile(chain.quests, chain.isComplete);
   const boss = chain?.boss
     ? {
@@ -217,6 +229,9 @@ export default function DailyQuestChain({
     : "locked";
   const claimedAtLabel = formatClaimedAt(chain.rewardClaimedAt);
   const anticipationReady = !chain.rewardClaimed && !chain.rewardClaimable && Number(chain.completionPct || 0) >= 80;
+  const dailyResetLabel = useMemo(() => {
+    return formatCountdown(msUntilNextLocalMidnight(new Date(nowMs)));
+  }, [nowMs]);
   const hpFillClass = skinHud?.hpFillClass ?? "from-lime-300 via-emerald-200 to-white";
   const badgeRingClass = skinHud?.badgeRingClass ?? "ring-slate-200/80";
   const focusRingClass = skinHud?.focusRingClass ?? "ring-indigo-300";
@@ -277,6 +292,8 @@ export default function DailyQuestChain({
             {boss.buffs?.length > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
                 {boss.buffs.map((buff, idx) => {
+                  const buffId = `${String(buff.key || "buff")}-${idx}`;
+                  const isOpen = openBuffKey === buffId;
                   const lifecycle = resolveBuffState({
                     completionPct: chain.completionPct,
                     buffIndex: idx,
@@ -287,15 +304,21 @@ export default function DailyQuestChain({
                   <div key={buff.key} className="group relative">
                     <button
                       type="button"
+                      onClick={() => setOpenBuffKey((prev) => (prev === buffId ? null : buffId))}
                       className={`relative inline-flex h-8 w-8 items-center justify-center rounded-lg border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
                       aria-label={`${buff.name}: ${buff.description}`}
+                      aria-expanded={isOpen}
                     >
                       <BuffIcon buffKey={buff.key} />
                       <span className={`absolute -bottom-1 -right-1 rounded-full border px-1 text-[9px] font-bold ${state.pillClass}`}>
                         {state.label[0]}
                       </span>
                     </button>
-                    <div className="pointer-events-none invisible absolute bottom-full left-1/2 z-30 mb-1 w-52 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                    <div
+                      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-52 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
+                        isOpen ? "visible opacity-100" : "invisible opacity-0"
+                      }`}
+                    >
                       <div className="font-semibold text-white">{buff.name}</div>
                       <div className={`mt-0.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${state.pillClass}`}>
                         {state.label}
@@ -343,6 +366,7 @@ export default function DailyQuestChain({
               <Trophy className="h-4 w-4 text-amber-600" />
               +{chain.rewardXp} XP
             </div>
+            <div className="mt-0.5 text-[11px] text-slate-600">Resets in {dailyResetLabel}</div>
             {anticipationReady && (
               <div className="mt-0.5 text-[11px] font-semibold text-indigo-700">
                 Chest charging... {Math.max(0, 100 - Number(chain.completionPct || 0))}% to unlock

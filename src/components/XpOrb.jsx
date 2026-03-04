@@ -61,11 +61,11 @@ export default function XpOrb({ level = 1, totalXp = 0, reward = null }) {
       </div>
 
       <div className="w-full">
-        <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-white/90">
           <span>XP</span>
-          <span>{levelXp}/{levelCost}</span>
+          <span className="font-bold text-white">{levelXp}/{levelCost}</span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/30">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/40">
           <div
             className="h-full bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500 transition-all duration-300 ease-out"
             style={{ width: `${progressPct}%` }}

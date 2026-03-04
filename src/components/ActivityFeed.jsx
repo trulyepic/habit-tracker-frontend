@@ -10,6 +10,7 @@ function formatWhen(dateIso, createdAtIso) {
 }
 
 export default function ActivityFeed({
+  skinKey = "classic",
   items = [],
   loading = false,
   hasMore = false,
@@ -19,7 +20,7 @@ export default function ActivityFeed({
   const [mode, setMode] = useState("all");
 
   const actionLabel = (action) => {
-    if (action === "habit_created") return "Created quest";
+    if (action === "habit_created") return "Created habit";
     return "Check-in";
   };
 
@@ -35,14 +36,61 @@ export default function ActivityFeed({
     { key: "created", label: "Created" },
   ];
 
+  const actionTone = (action) =>
+    action === "habit_created"
+      ? "bg-indigo-100 text-indigo-700"
+      : "bg-emerald-100 text-emerald-700";
+
+  const skinTone =
+    skinKey === "ember"
+      ? "from-white via-rose-50/40 to-orange-50/35"
+      : skinKey === "chrono"
+      ? "from-white via-cyan-50/40 to-sky-50/35"
+      : skinKey === "aegis"
+      ? "from-white via-fuchsia-50/35 to-violet-50/35"
+      : skinKey === "sunforge"
+      ? "from-white via-orange-50/35 to-amber-50/35"
+      : skinKey === "sovereign"
+      ? "from-white via-amber-50/35 to-orange-50/35"
+      : skinKey === "starlit"
+      ? "from-white via-indigo-50/35 to-sky-50/35"
+      : skinKey === "voidrunner"
+      ? "from-white via-indigo-50/35 to-violet-50/35"
+      : skinKey === "behemoth"
+      ? "from-white via-emerald-50/35 to-cyan-50/35"
+      : skinKey === "astral"
+      ? "from-white via-sky-50/35 to-indigo-50/35"
+      : "from-white via-sky-50/40 to-indigo-50/30";
+
+  const chipTone =
+    skinKey === "ember"
+      ? "bg-rose-100 text-rose-700"
+      : skinKey === "chrono"
+      ? "bg-sky-100 text-sky-700"
+      : skinKey === "aegis"
+      ? "bg-fuchsia-100 text-fuchsia-700"
+      : skinKey === "sunforge"
+      ? "bg-orange-100 text-orange-700"
+      : skinKey === "sovereign"
+      ? "bg-amber-100 text-amber-700"
+      : skinKey === "starlit"
+      ? "bg-indigo-100 text-indigo-700"
+      : skinKey === "voidrunner"
+      ? "bg-indigo-100 text-indigo-700"
+      : skinKey === "behemoth"
+      ? "bg-emerald-100 text-emerald-700"
+      : skinKey === "astral"
+      ? "bg-blue-100 text-blue-700"
+      : "bg-indigo-100 text-indigo-700";
+
   return (
-    <div className="motion-fade-slide rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className={`motion-fade-slide rounded-2xl border border-slate-200 bg-gradient-to-br p-5 shadow-sm ${skinTone}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-900">Recent Activity</h3>
-          <p className="mt-1 text-xs text-slate-500">Your latest quest actions and XP gains.</p>
+          <p className="mt-1 text-xs text-slate-500">Your latest habit actions and XP gains.</p>
         </div>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${chipTone}`}>
           {filtered.length} shown
         </span>
       </div>
@@ -59,7 +107,7 @@ export default function ActivityFeed({
             onClick={() => setMode(f.key)}
             className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
               mode === f.key
-                ? "bg-slate-900 text-white"
+                ? "bg-gradient-to-r from-indigo-700 to-sky-700 text-white"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -80,7 +128,7 @@ export default function ActivityFeed({
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold text-slate-900">{e.habitName}</div>
                   <div className="mt-0.5 inline-flex items-center gap-1 text-xs text-slate-600">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${actionTone(e.action)}`}>
                       {actionLabel(e.action)}
                     </span>
                   </div>
@@ -97,7 +145,7 @@ export default function ActivityFeed({
                     </span>
                   )}
                   {e.xpAwarded > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                       <Zap className="h-3 w-3" />+{e.xpAwarded} XP
                     </span>
                   )}

@@ -10,6 +10,7 @@ export default function MiniMapNav({
   activeView = "quests",
   claimPanelOpen = false,
   claimableCount = 0,
+  activeClassName = "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm",
   onSelect,
 }) {
   return (
@@ -26,7 +27,7 @@ export default function MiniMapNav({
             onClick={() => onSelect?.(item.key)}
             className={`relative rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
               isActive
-                ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm"
+                ? activeClassName
                 : "bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"
             }`}
           >
@@ -45,4 +46,3 @@ export default function MiniMapNav({
     </div>
   );
 }
-
