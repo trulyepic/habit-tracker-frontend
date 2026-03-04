@@ -271,7 +271,7 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await expect(page.getByText("Saved locally").first()).toBeVisible();
 
   await page.getByRole("link", { name: "Login" }).click();
-  await expect(page.getByText("e2e_user")).toBeVisible();
+  await expect(page.getByText("e2e_user").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
   await page.getByRole("button", { name: "Claims" }).click();
   await expect(page.getByText("Complete all daily objectives to unlock this reward.")).toBeVisible();
