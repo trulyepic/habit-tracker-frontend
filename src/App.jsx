@@ -936,7 +936,7 @@ export default function App() {
               {isAuthed ? (
                 <span className="font-semibold">{me?.username ?? "Player"}</span>
               ) : (
-                <span className="font-semibold">Guest mode</span>
+                <span className="font-semibold">Guest</span>
               )}
               <span className="mx-1 text-white/70">•</span>
               <span>Lv {player.level}</span>
