@@ -276,9 +276,9 @@ test("login -> create quest -> check-in -> deactivate keeps quest visible", asyn
   await page.getByRole("button", { name: "Claims" }).click();
   await expect(page.getByText("Complete all daily objectives to unlock this reward.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Create" }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByPlaceholder("Habit name (unique)").fill("E2E Quest");
-  await page.getByRole("button", { name: "Create" }).last().click();
+  await page.locator("form").getByRole("button", { name: "Create", exact: true }).click();
 
   await page.getByRole("button", { name: "My Quests" }).click();
   await expect(page.getByText("E2E Quest")).toBeVisible();
