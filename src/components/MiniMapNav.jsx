@@ -11,10 +11,16 @@ export default function MiniMapNav({
   claimPanelOpen = false,
   claimableCount = 0,
   activeClassName = "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm",
+  mobileDocked = true,
   onSelect,
 }) {
+  // Mobile-first: dock primary navigation near bottom for thumb reach.
+  const navShellClass = mobileDocked
+    ? "fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-40 sm:static sm:z-auto"
+    : "";
+
   return (
-    <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+    <div className={`${navShellClass} grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur sm:bg-white sm:backdrop-blur-0`}>
       {ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive =
@@ -25,13 +31,13 @@ export default function MiniMapNav({
             key={item.key}
             type="button"
             onClick={() => onSelect?.(item.key)}
-            className={`relative rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
+            className={`relative rounded-xl px-2 py-2.5 text-xs font-semibold transition-all duration-200 sm:px-3 sm:py-2 ${
               isActive
                 ? activeClassName
                 : "bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"
             }`}
           >
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 sm:gap-1.5">
               <Icon className="h-4 w-4" />
               {item.label}
             </span>

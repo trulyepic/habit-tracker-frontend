@@ -286,4 +286,11 @@
   .chest-anticipation {
     animation: chest-charge-pulse 1.6s ease-in-out infinite;
   }
+
+  /* Mobile-first: reduce hover-driven motion on touch devices for smoother feel. */
+  @media (hover: none) and (pointer: coarse) {
+    .surface-interactive {
+      @apply hover:translate-y-0 hover:shadow-sm;
+    }
+  }
 }

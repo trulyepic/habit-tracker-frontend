@@ -160,26 +160,26 @@ export default function WeeklyBossEncounter({
 
   return (
     <div className={`motion-fade-slide mt-4 mb-6 overflow-visible rounded-2xl border shadow-sm ${panelSkinClass}`}>
-      <div className={`relative rounded-t-2xl bg-gradient-to-r ${resolveWeeklyBannerTint(boss)} px-4 py-3 text-white`}>
+      <div className={`relative rounded-t-2xl bg-gradient-to-r ${resolveWeeklyBannerTint(boss)} px-3 py-2.5 text-white sm:px-4 sm:py-3`}>
         <div className="pointer-events-none absolute inset-0 bg-slate-950/20" />
         <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-cyan-200/20 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-8 left-12 h-24 w-24 rounded-full bg-indigo-200/20 blur-2xl" />
 
-        <div className="relative mb-2 flex items-center justify-between gap-3">
+        <div className="relative mb-2 flex items-start justify-between gap-2 sm:items-center sm:gap-3">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
             Weekly Raid
           </div>
-          <div className="text-right text-xs font-bold text-white">
+          <div className="text-right text-[11px] font-bold text-white sm:text-xs">
             {encounter.completedCount}/{encounter.totalCount} mechanics
           </div>
         </div>
 
-        <div className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
+        <div className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold sm:text-xs">
           <EncounterIcon icon={boss.icon} />
           {boss.name}
         </div>
-        <p className="text-shadow-strong relative mt-1.5 text-sm text-white">{boss.subtitle}</p>
-        <div className="relative mt-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
+        <p className="text-shadow-strong relative mt-1.5 text-xs text-white sm:text-sm">{boss.subtitle}</p>
+        <div className="relative mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide sm:gap-2 sm:text-[11px]">
           <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ring-1 ${badgeRingClass} ${rarityMeta.className}`}>
             <RarityIcon className="h-3 w-3" />
             {rarityMeta.label}
@@ -191,6 +191,7 @@ export default function WeeklyBossEncounter({
           <span className="rounded-full bg-white/20 px-2 py-0.5">{encounter.weekKey}</span>
         </div>
 
+        {/* Mobile-first: larger buff chips for touch-first inspect behavior. */}
         {boss.buffs?.length > 0 && (
           <div className="relative mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
             {boss.buffs.map((buff, idx) => {
@@ -207,7 +208,7 @@ export default function WeeklyBossEncounter({
                 <button
                   type="button"
                   onClick={() => setOpenBuffKey((prev) => (prev === buffId ? null : buffId))}
-                  className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
+                  className={`relative inline-flex h-9 w-9 items-center justify-center rounded-md border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:h-8 sm:w-8`}
                   aria-label={`${buff.name}: ${buff.description}`}
                   aria-expanded={isOpen}
                 >
@@ -217,7 +218,7 @@ export default function WeeklyBossEncounter({
                   </span>
                 </button>
                 <div
-                  className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-56 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
+                  className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-56 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
                     isOpen ? "visible opacity-100" : "invisible opacity-0"
                   }`}
                 >
@@ -247,7 +248,8 @@ export default function WeeklyBossEncounter({
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
+        {/* Mobile-first: raid status cards stay in a horizontal rail to preserve readability. */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
           <div
             className={`motion-stagger-item w-56 shrink-0 rounded-xl border px-3 py-2 sm:w-auto ${
@@ -296,7 +298,7 @@ export default function WeeklyBossEncounter({
             <button
               type="button"
               onClick={onOpenCreate}
-              className="surface-interactive w-56 shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 text-left sm:w-auto"
+              className="surface-interactive w-[88vw] max-w-md shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 text-left sm:w-auto sm:max-w-none"
             >
               <div className="text-xs font-semibold text-indigo-800">Quest Forge</div>
               <div className="text-[11px] text-indigo-700">Create quests to increase weekly options.</div>
@@ -304,12 +306,12 @@ export default function WeeklyBossEncounter({
             <button
               type="button"
               onClick={onOpenSafety}
-              className="surface-interactive w-56 shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 text-left sm:w-auto"
+              className="surface-interactive w-[88vw] max-w-md shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 text-left sm:w-auto sm:max-w-none"
             >
               <div className="text-xs font-semibold text-indigo-800">Safety Ops</div>
               <div className="text-[11px] text-indigo-700">Open Safety tab and protect risky streaks.</div>
             </button>
-            <div className="w-56 shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 sm:w-auto">
+            <div className="w-[88vw] max-w-md shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-2 sm:w-auto sm:max-w-none">
               <div className="text-xs font-semibold text-indigo-800">Focus Target</div>
               <div className="text-[11px] text-indigo-700">
                 {focusedQuest
@@ -349,7 +351,7 @@ export default function WeeklyBossEncounter({
         </div>
 
         {focusedQuest && (
-          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-3 py-2">
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Best Next Action</div>
               <div className="text-sm font-semibold text-slate-900">{focusedQuest.title}</div>
@@ -357,7 +359,7 @@ export default function WeeklyBossEncounter({
             <button
               type="button"
               onClick={onJumpToObjective}
-              className="surface-interactive rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700"
+              className="surface-interactive w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-2 text-xs font-semibold text-indigo-700 sm:w-auto sm:py-1.5"
             >
               Jump
             </button>
@@ -371,7 +373,7 @@ export default function WeeklyBossEncounter({
               {boss.mechanics.map((line, idx) => (
                 <div
                   key={`${boss.key}-m-${idx}`}
-                  className="flex w-72 shrink-0 items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 sm:w-auto"
+                  className="flex w-[88vw] max-w-md shrink-0 items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 sm:w-auto sm:max-w-none"
                 >
                   <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">
                     {idx + 1}
@@ -433,6 +435,7 @@ export default function WeeklyBossEncounter({
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+          {/* Mobile-first: keep claim action full-width and prominent near bottom. */}
           <button
             type="button"
             onClick={onClaimReward}

@@ -21,13 +21,13 @@ export default function AuthBar({ isAuthed, me, onLogout }) {
             Lv {level}
           </span>
           {currentTitle?.name && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-50 px-2 py-1 text-xs font-semibold text-fuchsia-700">
+            <span className="hidden items-center gap-1 rounded-full bg-fuchsia-50 px-2 py-1 text-xs font-semibold text-fuchsia-700 sm:inline-flex">
               <Crown className="h-3.5 w-3.5" />
               {currentTitle.emoji ? `${currentTitle.emoji} ` : ""}
               {currentTitle.name}
             </span>
           )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700">
+          <span className="hidden items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 sm:inline-flex">
             <BadgeCheck className="h-3.5 w-3.5" />
             Online
           </span>
@@ -46,7 +46,7 @@ export default function AuthBar({ isAuthed, me, onLogout }) {
             <User className="h-3.5 w-3.5" />
             Guest mode
           </span>
-          <span className="text-xs text-slate-500">Saved locally</span>
+          <span className="hidden text-xs text-slate-500 sm:inline">Saved locally</span>
           <a
             href={`${API_BASE}/login/?next=${next}`}
             target="_self"
