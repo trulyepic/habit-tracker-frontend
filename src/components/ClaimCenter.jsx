@@ -1,4 +1,4 @@
-import { Bell, CheckCircle2, Gift, ShieldCheck, Sparkles, Trophy } from "lucide-react";
+import { Bell, CheckCircle2, Clock3, Gift, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 
 export default function ClaimCenter({
   claimableCount = 0,
@@ -14,9 +14,12 @@ export default function ClaimCenter({
   recoveryRewardXp = 0,
   onClaimRecovery,
   claimingRecovery = false,
+  dailyResetLabel = "",
+  weeklyResetLabel = "",
   newAchievementsCount = 0,
   onAcknowledgeAchievements,
   history = [],
+  panelClassName = "border-slate-200 bg-white",
 }) {
   return (
     <div className="relative">
@@ -44,7 +47,7 @@ export default function ClaimCenter({
             showTrigger
               ? "absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)]"
               : "w-full"
-          } rounded-2xl border border-slate-200 bg-white p-4 shadow-xl`}
+          } rounded-2xl border p-4 shadow-xl ${panelClassName}`}
         >
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-semibold text-slate-900">Claimable Rewards</div>
@@ -61,6 +64,24 @@ export default function ClaimCenter({
           </div>
 
           <div className="mt-3 space-y-2">
+            {(dailyResetLabel || weeklyResetLabel) && (
+              <div className="rounded-xl border border-slate-200 bg-white/90 p-2.5">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  {dailyResetLabel && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-700">
+                      <Clock3 className="h-3 w-3 text-slate-500" />
+                      Daily reset {dailyResetLabel}
+                    </span>
+                  )}
+                  {weeklyResetLabel && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-700">
+                      <Clock3 className="h-3 w-3 text-slate-500" />
+                      Weekly reset {weeklyResetLabel}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5">
@@ -104,6 +125,9 @@ export default function ClaimCenter({
                   {claimingRecovery ? "Claiming..." : recoveryClaimable ? `Claim +${recoveryRewardXp} XP` : "Locked"}
                 </button>
               </div>
+              {dailyResetLabel && (
+                <div className="mt-1 text-xs text-slate-600">Recovery objectives refresh with daily reset ({dailyResetLabel}).</div>
+              )}
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">

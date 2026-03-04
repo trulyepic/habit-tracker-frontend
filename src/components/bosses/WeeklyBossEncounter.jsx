@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Crown, ShieldAlert, ShieldCheck, Sparkles, Swords, Target, Trophy, Wrench } from "lucide-react";
+import { formatCountdown, msUntilWeeklyReset } from "../../lib/resetTimers";
 import { buffStateMeta, resolveBuffState } from "./buffLifecycle";
 import { getBuffTone, getDifficultyToken, getRarityToken, STAT_CARD_TONES } from "./uiTokens";
 
@@ -53,6 +54,8 @@ export default function WeeklyBossEncounter({
   feedback = "",
 }) {
   const [encounterTimeline, setEncounterTimeline] = useState([]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [openBuffKey, setOpenBuffKey] = useState(null);
   const prevCompletionPctRef = useRef(Number(encounter?.completionPct || 0));
   const prevCompletedCountRef = useRef(Number(encounter?.completedCount || 0));
   const prevClaimableRef = useRef(Boolean(encounter?.rewardClaimable));
@@ -100,6 +103,15 @@ export default function WeeklyBossEncounter({
     prevClaimedRef.current = currentClaimed;
   }, [encounter?.completedCount, encounter?.completionPct, encounter?.rewardClaimable, encounter?.rewardClaimed]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    setOpenBuffKey(null);
+  }, [encounter?.weekKey, encounter?.boss?.key]);
+
   if (loading && !encounter) {
     return (
       <div className="motion-fade-slide mt-4 mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -131,6 +143,9 @@ export default function WeeklyBossEncounter({
     : "locked";
   const anticipationReady =
     !encounter.rewardClaimed && !encounter.rewardClaimable && Number(encounter.completionPct || 0) >= 75;
+  const weeklyResetLabel = formatCountdown(
+    msUntilWeeklyReset(encounter.weekEnd, new Date(nowMs))
+  );
   const hpFillClass = skinHud?.hpFillClass ?? "from-cyan-300 via-indigo-200 to-white";
   const badgeRingClass = skinHud?.badgeRingClass ?? "ring-slate-200/80";
   const focusRingClass = skinHud?.focusRingClass ?? "ring-indigo-300";
@@ -179,6 +194,8 @@ export default function WeeklyBossEncounter({
         {boss.buffs?.length > 0 && (
           <div className="relative mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
             {boss.buffs.map((buff, idx) => {
+              const buffId = `${String(buff.key || "buff")}-${idx}`;
+              const isOpen = openBuffKey === buffId;
               const lifecycle = resolveBuffState({
                 completionPct: encounter.completionPct,
                 buffIndex: idx,
@@ -189,15 +206,21 @@ export default function WeeklyBossEncounter({
               <div key={buff.key} className="group relative">
                 <button
                   type="button"
+                  onClick={() => setOpenBuffKey((prev) => (prev === buffId ? null : buffId))}
                   className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
                   aria-label={`${buff.name}: ${buff.description}`}
+                  aria-expanded={isOpen}
                 >
                   <BuffIcon buffKey={buff.key} />
                   <span className={`absolute -bottom-1 -right-1 rounded-full border px-1 text-[9px] font-bold ${state.pillClass}`}>
                     {state.label[0]}
                   </span>
                 </button>
-                <div className="pointer-events-none invisible absolute bottom-full left-1/2 z-30 mb-1 w-56 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                <div
+                  className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-56 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
+                    isOpen ? "visible opacity-100" : "invisible opacity-0"
+                  }`}
+                >
                   <div className="font-semibold text-white">{buff.name}</div>
                   <div className={`mt-0.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${state.pillClass}`}>
                     {state.label}
@@ -237,6 +260,7 @@ export default function WeeklyBossEncounter({
               <Trophy className="h-4 w-4 text-amber-600" />
               +{encounter.rewardXp} XP
             </div>
+            <div className="mt-0.5 text-[11px] text-slate-600">Resets in {weeklyResetLabel}</div>
             {anticipationReady && (
               <div className="mt-0.5 text-[11px] font-semibold text-indigo-700">
                 Chest charging... {Math.max(0, 100 - Number(encounter.completionPct || 0))}% to unlock

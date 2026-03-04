@@ -18,10 +18,19 @@ function xpIntoLevel(totalXp: number, level: number) {
   return { inLevel: Math.max(0, inLevel), needed };
 }
 
+function formatLoggedDuration(totalMinutesLogged: number) {
+  const minutes = Math.max(0, Math.floor(Number(totalMinutesLogged || 0)));
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  if (hours === 0) return `${rem}m logged`;
+  if (rem === 0) return `${hours}h logged`;
+  return `${hours}h ${rem}m logged`;
+}
+
 export function PlayerBar({ level, totalXp, totalMinutesLogged, achievementsUnlocked, titleState }: Props) {
   const { inLevel, needed } = xpIntoLevel(totalXp, level);
   const pct = Math.min(100, Math.round((inLevel / needed) * 100));
-  const hours = (totalMinutesLogged / 60).toFixed(1);
+  const loggedDurationLabel = formatLoggedDuration(totalMinutesLogged);
   const resolvedTitleState = titleState ?? resolveTitleState({
     level,
     achievementsUnlockedRaw: achievementsUnlocked,
@@ -64,7 +73,7 @@ export function PlayerBar({ level, totalXp, totalMinutesLogged, achievementsUnlo
         <span className="rounded-md bg-sky-50 p-1">
           <Clock className="h-4 w-4 text-sky-700" />
         </span>
-        {hours} hrs logged
+        {loggedDurationLabel}
       </div>
     </div>
   );

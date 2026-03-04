@@ -15,6 +15,8 @@ function achievementIcon(key) {
     case "on_fire":
       return Flame;
     case "ten_hours":
+    case "twenty_five_hours":
+    case "hundred_hours":
       return Hourglass;
     case "iron_will":
       return Shield;
@@ -25,7 +27,7 @@ function achievementIcon(key) {
   }
 }
 
-export default function AchievementsScreen({ habits, playerProfile }) {
+export default function AchievementsScreen({ skinKey = "classic", habits, playerProfile }) {
   const unlockedMap = useMemo(() => {
     return coerceUnlockedMap(playerProfile?.achievementsUnlocked);
   }, [playerProfile?.achievementsUnlocked]);
@@ -67,8 +69,29 @@ export default function AchievementsScreen({ habits, playerProfile }) {
     ? Math.round((computed.unlockedCount / computed.total) * 100)
     : 0;
 
+  const panelTone =
+    skinKey === "ember"
+      ? "from-white via-rose-50/25 to-orange-50/25"
+      : skinKey === "chrono"
+      ? "from-white via-cyan-50/25 to-sky-50/25"
+      : skinKey === "aegis"
+      ? "from-white via-fuchsia-50/20 to-violet-50/20"
+      : skinKey === "sunforge"
+      ? "from-white via-orange-50/25 to-amber-50/25"
+      : skinKey === "sovereign"
+      ? "from-white via-amber-50/25 to-orange-50/25"
+      : skinKey === "starlit"
+      ? "from-white via-indigo-50/25 to-sky-50/25"
+      : skinKey === "voidrunner"
+      ? "from-white via-indigo-50/25 to-violet-50/25"
+      : skinKey === "behemoth"
+      ? "from-white via-emerald-50/25 to-cyan-50/25"
+      : skinKey === "astral"
+      ? "from-white via-sky-50/25 to-indigo-50/25"
+      : "from-white via-amber-50/20 to-fuchsia-50/20";
+
   return (
-    <div className="motion-fade-slide rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className={`motion-fade-slide rounded-2xl border border-slate-200 bg-gradient-to-br p-5 shadow-sm ${panelTone}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Achievements</h2>
@@ -76,7 +99,7 @@ export default function AchievementsScreen({ habits, playerProfile }) {
             {computed.unlockedCount}/{computed.total} unlocked • {overallPct}% complete
           </div>
 
-          <div className="mt-3 h-2 w-72 max-w-[70vw] overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-3 h-2 w-72 max-w-[70vw] overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full bg-gradient-to-r from-amber-500 via-fuchsia-500 to-sky-500 transition-all duration-300 ease-out"
               style={{ width: `${overallPct}%` }}
@@ -84,7 +107,7 @@ export default function AchievementsScreen({ habits, playerProfile }) {
           </div>
         </div>
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-fuchsia-100 shadow-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 via-orange-100 to-fuchsia-100 shadow-sm">
           <Trophy className="h-5 w-5 text-amber-700" />
         </div>
       </div>
@@ -99,7 +122,7 @@ export default function AchievementsScreen({ habits, playerProfile }) {
               key={a.key}
               className={`surface-interactive rounded-xl border bg-gradient-to-br p-4 ${
                 a.unlocked
-                  ? "border-emerald-200 from-emerald-50/70 to-white"
+                  ? "border-emerald-300 from-emerald-50/80 via-teal-50/50 to-white"
                   : `border-slate-200 ${a.rarityCardTint}`
               }`}
             >
@@ -116,7 +139,7 @@ export default function AchievementsScreen({ habits, playerProfile }) {
                     </span>
 
                     {a.bonusXp > 0 && (
-                      <span className="inline-flex items-center rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                      <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-50 to-orange-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                         +{a.bonusXp} XP
                       </span>
                     )}
@@ -155,7 +178,7 @@ export default function AchievementsScreen({ habits, playerProfile }) {
 
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className={`h-full transition-all duration-300 ease-out ${a.unlocked ? "bg-emerald-600" : a.rarityProgressFill}`}
+                    className={`h-full transition-all duration-300 ease-out ${a.unlocked ? "bg-gradient-to-r from-emerald-500 to-teal-500" : a.rarityProgressFill}`}
                     style={{ width: `${a.unlocked ? 100 : pct(a.progress01)}%` }}
                   />
                 </div>

@@ -236,6 +236,6 @@ test("boss badges, buff tooltip, and raid tools navigation work", async ({ page 
 
   await page.getByRole("button", { name: /Weekly/ }).click();
   await page.getByRole("button", { name: "Quest Forge" }).click();
-  await expect(page.getByText("Create New Quest", { exact: true })).toBeVisible();
+  await expect(page.getByText("Create New Habit", { exact: true })).toBeVisible();
   await expect(page.getByPlaceholder("Habit name (unique)")).toBeVisible();
 });

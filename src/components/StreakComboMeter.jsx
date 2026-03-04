@@ -54,7 +54,7 @@ export default function StreakComboMeter({ habits = [] }) {
         </div>
 
         <div className="text-right text-xs text-slate-500">
-          <div>{activeToday.length} quests checked in today</div>
+          <div>{activeToday.length} habits checked in today</div>
           <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
             <Zap className="h-3.5 w-3.5" />
             Combo {pct}%
@@ -71,4 +71,3 @@ export default function StreakComboMeter({ habits = [] }) {
     </div>
   );
 }
-

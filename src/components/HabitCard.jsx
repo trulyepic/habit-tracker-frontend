@@ -1,6 +1,18 @@
 import { useMemo, useState } from "react";
 import { Activity, CalendarCheck2, Flame, Medal, Snowflake, Timer, Zap } from "lucide-react";
 
+function resolveHabitRank(streak) {
+  const value = Number(streak ?? 0);
+  if (value >= 21) return { label: "Legend", tone: "bg-amber-50 text-amber-700" };
+  if (value >= 10) return { label: "Elite", tone: "bg-fuchsia-50 text-fuchsia-700" };
+  if (value >= 5) return { label: "Rising", tone: "bg-sky-50 text-sky-700" };
+  return { label: "Novice", tone: "bg-slate-100 text-slate-700" };
+}
+
+const QUICK_MINUTES = [5, 15, 30];
+const CHECKIN_MINUTES_MIN = 1;
+const CHECKIN_MINUTES_MAX = 720;
+
 export default function HabitCard({
   habit,
   onCheckIn, // NOW expects: (habitId, minutesSpent)
@@ -21,11 +33,18 @@ export default function HabitCard({
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [minutes]);
 
-  const checkInDisabled = checkingIn || (habit.checkedInToday && !habit.usedFreezeToday);
+  const checkInLocked = checkingIn || (habit.checkedInToday && !habit.usedFreezeToday);
+  const checkInDisabled =
+    checkInLocked ||
+    minutesInt == null ||
+    minutesInt < CHECKIN_MINUTES_MIN ||
+    minutesInt > CHECKIN_MINUTES_MAX;
   const freezeEligible = canUseFreeze && !habit.checkedInToday && (habit.currentStreak ?? 0) > 0 && habit.isActive;
+  const habitRank = resolveHabitRank(habit.currentStreak);
 
   return (
-    <div className={`motion-fade-slide surface-interactive rounded-2xl border p-5 shadow-sm ${cardSkinClass}`}>
+    <div className={`motion-fade-slide surface-interactive relative overflow-hidden rounded-2xl border p-5 shadow-sm ${cardSkinClass}`}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-cyan-400 to-fuchsia-500" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -41,6 +60,9 @@ export default function HabitCard({
               }`}
             >
               {habit.isActive ? "ACTIVE" : "INACTIVE"}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${habitRank.tone}`}>
+              {habitRank.label}
             </span>
           </div>
 
@@ -76,7 +98,7 @@ export default function HabitCard({
             )}
           </div>
 
-          {/* Minutes input (optional) */}
+          {/* Minutes are required for fair XP + time tracking. */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors duration-200 focus-within:border-sky-300 focus-within:bg-sky-50/30">
               <Timer className="h-4 w-4 text-slate-500" />
@@ -90,12 +112,27 @@ export default function HabitCard({
             </div>
 
             <div className="text-xs text-slate-500">
-              Optional time log for XP bonus.
+              Required: log between {CHECKIN_MINUTES_MIN} and {CHECKIN_MINUTES_MAX} minutes.
             </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-slate-500">Quick check-in:</span>
+            {QUICK_MINUTES.map((m) => (
+              <button
+                key={`quick-${habit.id}-${m}`}
+                type="button"
+                disabled={checkInLocked}
+                onClick={() => onCheckIn(habit.id, m)}
+                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+                title={`Quick check-in with ${m} minutes`}
+              >
+                +{m}m
+              </button>
+            ))}
           </div>
 
           <p className="mt-2 text-[11px] text-slate-500">
-            Deactivate keeps quest history. Delete permanently removes the quest and its check-ins.
+            Deactivate keeps habit history. Delete permanently removes the habit and its check-ins.
           </p>
         </div>
 
@@ -105,7 +142,11 @@ export default function HabitCard({
             disabled={checkInDisabled}
             className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:from-slate-800 hover:to-slate-700 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
             type="button"
-            title={habit.checkedInToday && !habit.usedFreezeToday ? "Already checked in today" : "Check in"}
+            title={
+              habit.checkedInToday && !habit.usedFreezeToday
+                ? "Already checked in today"
+                : "Enter minutes or use quick check-in"
+            }
           >
             <Zap className="h-4 w-4" />
             {habit.usedFreezeToday
