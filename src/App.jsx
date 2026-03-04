@@ -36,6 +36,8 @@ import { DailyQuestChain, WeeklyBossEncounter } from "./components/bosses";
 import ClaimCenter from "./components/ClaimCenter";
 import XpOrb from "./components/XpOrb";
 import StreakComboMeter from "./components/StreakComboMeter";
+import MobileQuestScreen from "./components/mobile/MobileQuestScreen";
+import MobileProfileScreen from "./components/mobile/MobileProfileScreen";
 import { coerceUnlockedMap } from "./gamification/achievements";
 import { resolveTitleState, resolveTitleStateFromServerProfile } from "./gamification/titles";
 import { getUnlockedSkins, resolveSkin } from "./gamification/skins";
@@ -448,6 +450,9 @@ export default function App() {
   const [description, setDescription] = useState("");
   const [importing, setImporting] = useState(false);
   const [view, setView] = useState("quests");
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 639px)").matches : false
+  );
   const [questPanel, setQuestPanel] = useState("today");
   const [filterMode, setFilterMode] = useState("active");
   const [sortMode, setSortMode] = useState("next-up");
@@ -615,6 +620,15 @@ export default function App() {
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 60000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const onChange = (event) => setIsMobileView(event.matches);
+    setIsMobileView(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {
@@ -874,9 +888,8 @@ export default function App() {
   const hasAchievementDialog = !hasChestReveal && Boolean(lastUnlocks?.length);
   const hasLevelUpDialog = !hasChestReveal && !hasAchievementDialog && Boolean(lastReward?.leveledUp);
   const hasRewardToast = !hasChestReveal && !hasAchievementDialog && !hasLevelUpDialog && Boolean(lastReward);
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50/40">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50/40">
       <div className="pointer-events-none absolute inset-0 z-0">
         <div className={`ambient-orb-1 absolute -left-24 top-16 h-80 w-80 rounded-full blur-3xl ${selectedSkinUi.orb1}`} />
         <div className={`ambient-orb-2 absolute right-[-8rem] top-28 h-[24rem] w-[24rem] rounded-full blur-3xl ${selectedSkinUi.orb2}`} />
@@ -896,15 +909,106 @@ export default function App() {
         {hasChestReveal && <RewardChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
       </Suspense>
 
-      <div className="relative z-10 mx-auto max-w-4xl px-4 py-10">
-        <div className={`motion-fade-slide mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r p-6 text-white shadow-sm ${selectedSkinUi.heroClass}`}>
+      {/* Mobile-first: extra bottom padding keeps content clear of docked nav. */}
+      <div className="relative z-10 mx-auto max-w-4xl px-3 pb-40 pt-4 sm:px-4 sm:pb-10 sm:pt-10">
+        {/* Mobile-first: compact top panel reduces visual noise and keeps key stats glanceable. */}
+        <div className={`mb-2 rounded-2xl border border-slate-200 bg-gradient-to-r p-3 text-white shadow-sm sm:hidden ${selectedSkinUi.heroClass}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">Habit Arena</h1>
+              <p className="mt-0.5 text-[11px] text-slate-100">Quests, streaks, and daily boss runs.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                if (next) primeSoundCues();
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white"
+              title={soundEnabled ? "Disable sound cues" : "Enable sound cues"}
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-2 text-[11px]">
+            <div className="truncate">
+              {isAuthed ? (
+                <span className="font-semibold">{me?.username ?? "Player"}</span>
+              ) : (
+                <span className="font-semibold">Guest</span>
+              )}
+              <span className="mx-1 text-white/70">•</span>
+              <span>Lv {player.level}</span>
+            </div>
+            {isAuthed ? (
+              <button
+                onClick={onLogout}
+                className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white"
+                type="button"
+              >
+                Logout
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <a
+                  href={`${API_BASE}/login/?next=${encodeURIComponent(`${window.location.origin}/`)}`}
+                  target="_self"
+                  className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  Login
+                </a>
+                <a
+                  href={`${API_BASE}/register/?next=${encodeURIComponent(`${window.location.origin}/`)}`}
+                  target="_self"
+                  className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  Register
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 rounded-lg bg-white/10 px-2.5 py-2 text-[11px]">
+            <div className="mb-1 flex items-center justify-between font-semibold">
+              <span>{titleState.current.name}</span>
+              <span>{player.totalXp % 300}/300 XP</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+              <div
+                className="h-full bg-gradient-to-r from-amber-300 via-emerald-300 to-cyan-200"
+                style={{ width: `${Math.round(((player.totalXp % 300) / 300) * 100)}%` }}
+              />
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+            <div className="rounded-lg bg-white/12 px-2 py-1.5">
+              <span className="font-semibold">{questboardStats.activeCount}</span> active
+            </div>
+            <div className="rounded-lg bg-white/12 px-2 py-1.5">
+              <span className="font-semibold">{questboardStats.pendingToday}</span> pending
+            </div>
+            <div className="rounded-lg bg-white/12 px-2 py-1.5 text-right">
+              <span className="font-semibold">{claimableCount}</span> claims
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+            <div className="rounded-lg bg-white/12 px-2 py-1.5">
+              Daily reset {dailyResetLabel}
+            </div>
+            <div className="rounded-lg bg-white/12 px-2 py-1.5 text-right">
+              Weekly reset {weeklyResetLabel}
+            </div>
+          </div>
+        </div>
+
+        <div className={`motion-fade-slide mb-5 hidden rounded-2xl border border-slate-200 bg-gradient-to-r p-4 text-white shadow-sm sm:mb-6 sm:block sm:p-6 ${selectedSkinUi.heroClass}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Habit Arena</h1>
-              <p className="mt-1 text-sm text-slate-200">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Habit Arena</h1>
+              <p className="mt-1 text-xs text-slate-200 sm:text-sm">
                 Turn your habits into quests, build streaks, earn XP, and unlock rare achievements.
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] sm:gap-2 sm:text-xs">
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
                   <Flame className="h-3.5 w-3.5" />
                   Streak-driven progress
@@ -913,7 +1017,7 @@ export default function App() {
                   <Sparkles className="h-3.5 w-3.5" />
                   XP + rarity system
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
+                <span className="hidden items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 sm:inline-flex">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Title: {titleState.current.name}
                 </span>
@@ -928,19 +1032,19 @@ export default function App() {
                   title={soundEnabled ? "Disable sound cues" : "Enable sound cues"}
                 >
                   {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-                  Sound {soundEnabled ? "On" : "Off"}
+                  <span className="hidden sm:inline">Sound {soundEnabled ? "On" : "Off"}</span>
                 </button>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
                   <Compass className="h-3.5 w-3.5" />
                   Daily reset {dailyResetLabel}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">
+                <span className="hidden items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 sm:inline-flex">
                   <Swords className="h-3.5 w-3.5" />
                   Weekly reset {weeklyResetLabel}
                 </span>
               </div>
             </div>
-            <div className="hidden items-center gap-3 sm:flex">
+            <div className="hidden items-center gap-3 md:flex">
               <XpOrb level={player.level} totalXp={player.totalXp} reward={lastReward} />
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
                 <Swords className="h-6 w-6 text-amber-300" />
@@ -949,8 +1053,10 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <AuthBar isAuthed={isAuthed} me={me} onLogout={onLogout} />
+        <div className="hidden sm:mb-6 sm:flex sm:flex-row sm:items-center sm:justify-between">
+          <div className="hidden sm:block">
+            <AuthBar isAuthed={isAuthed} me={me} onLogout={onLogout} />
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {isAuthed && guestHabits.length > 0 && (
@@ -977,12 +1083,40 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {((isAuthed && guestHabits.length > 0) || (!isAuthed && guestHabits.length > 0)) && (
+          <div className="mb-2 flex sm:hidden">
+            <div className="flex flex-wrap items-center gap-2">
+              {isAuthed && guestHabits.length > 0 && (
+                <button
+                  onClick={onImportGuestHabits}
+                  disabled={importing}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition-all duration-200 ease-out disabled:opacity-60"
+                  type="button"
+                  title="Import locally saved habits into your account"
+                >
+                  {importing ? "Importing..." : `Import guest habits (${guestHabits.length})`}
+                </button>
+              )}
+              {!isAuthed && guestHabits.length > 0 && (
+                <button
+                  onClick={onClearGuest}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-all duration-200 ease-out"
+                  type="button"
+                >
+                  Clear guest data
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-2 flex flex-col gap-3 sm:mb-3 sm:flex-row sm:items-center sm:justify-between">
           <MiniMapNav
             activeView={view}
             claimPanelOpen={claimCenterOpen}
             claimableCount={claimableCount}
             activeClassName={selectedSkinUi.navActiveClass}
+            mobileDocked
             onSelect={(key) => {
               if (key === "claims") {
                 setClaimCenterOpen((v) => !v);
@@ -992,7 +1126,7 @@ export default function App() {
               setClaimCenterOpen(false);
             }}
           />
-          {view === "quests" && (
+          {view === "quests" && !isMobileView && (
             <div className="flex items-center gap-2">
               <span className="hidden rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex">
                 Daily reset in {dailyResetLabel}
@@ -1036,7 +1170,32 @@ export default function App() {
           </div>
         )}
 
-        {view === "profile" && (
+        {view === "profile" && isMobileView && (
+          <MobileProfileScreen
+            habits={habits}
+            player={player}
+            playerProfile={me?.playerProfile ?? null}
+            titleState={titleState}
+            skinKey={selectedSkinKey}
+            skinName={selectedSkin.name}
+            dailyQuestChain={dailyQuestChain}
+            weeklyBossEncounter={weeklyBossEncounter}
+            recoveryQuest={recoveryQuest}
+            freezeCharges={freezeCharges}
+            recentActivity={recentActivity}
+            recentActivityLoading={recentActivityLoading}
+            recentActivityHasMore={recentActivityHasMore}
+            onLoadMoreActivity={() => setActivityLimit((n) => Math.min(n + 10, 100))}
+            onCollapseActivity={activityLimit > 5 ? () => setActivityLimit(5) : undefined}
+            unlockedSkinKeys={unlockedSkinKeys}
+            selectedSkinKey={selectedSkinKey}
+            onSelectSkin={setSelectedSkinKey}
+            dailyResetLabel={dailyResetLabel}
+            weeklyResetLabel={weeklyResetLabel}
+          />
+        )}
+
+        {view === "profile" && !isMobileView && (
           <ProfileScreen
             habits={habits}
             player={player}
@@ -1061,23 +1220,96 @@ export default function App() {
           />
         )}
 
-        {view === "quests" && (
+        {view === "quests" && isMobileView && (
+          <MobileQuestScreen
+            isAuthed={isAuthed}
+            loading={loading}
+            error={error}
+            questPanel={questPanel}
+            setQuestPanel={setQuestPanel}
+            selectedSkinUi={selectedSkinUi}
+            selectedSkin={selectedSkin}
+            titleState={titleState}
+            player={player}
+            habits={habits}
+            displayedHabits={displayedHabits}
+            questboardStats={questboardStats}
+            atRiskHabits={atRiskHabits}
+            freezeCharges={freezeCharges}
+            recoveryQuest={recoveryQuest}
+            dailyQuestData={dailyQuestData}
+            dailyQuestLoading={dailyQuestLoading}
+            claimingDailyReward={claimingDailyReward}
+            onClaimDailyReward={onClaimDailyReward}
+            weeklyBossEncounter={weeklyBossEncounter}
+            weeklyBossLoading={weeklyBossLoading}
+            claimingWeeklyBoss={claimingWeeklyBoss}
+            onClaimWeeklyBossReward={onClaimWeeklyBossReward}
+            weeklyClaimFeedback={weeklyClaimFeedback}
+            claimingRecovery={claimingRecovery}
+            onClaimRecovery={onClaimRecovery}
+            onUseFreeze={onUseFreeze}
+            consumingFreeze={consumingFreeze}
+            name={name}
+            setName={setName}
+            description={description}
+            setDescription={setDescription}
+            onCreate={onCreate}
+            creating={creating}
+            starterQuests={STARTER_QUESTS}
+            filterMode={filterMode}
+            setFilterMode={setFilterMode}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            deactivateHint={deactivateHint}
+            setDeactivateHint={setDeactivateHint}
+            onCheckIn={onCheckIn}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            checkingIn={checkingIn}
+            toggling={toggling}
+            deleting={deleting}
+            dailyResetLabel={dailyResetLabel}
+            weeklyResetLabel={weeklyResetLabel}
+            onRefresh={onRefresh}
+          />
+        )}
+
+        {view === "quests" && !isMobileView && (
           <StreakComboMeter habits={habits} />
         )}
 
-        {view === "quests" && (
-          <QuestPanelTabs
-            active={questPanel}
-            onChange={setQuestPanel}
-            activeClassName={selectedSkinUi.tabActiveClass}
-            badges={{
-              weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
-              safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
-              quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
-            }}
-          />
+        {view === "quests" && !isMobileView && (
+          <>
+            {/* Mobile-first: sticky segmented rail behaves like native section switcher. */}
+            <div className="sticky top-2 z-20 -mx-1 mb-3 rounded-2xl border border-slate-200 bg-white/95 px-1 pt-1.5 shadow-sm backdrop-blur sm:hidden">
+              <QuestPanelTabs
+                active={questPanel}
+                onChange={setQuestPanel}
+                className="mb-0"
+                activeClassName={selectedSkinUi.tabActiveClass}
+                badges={{
+                  weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
+                  safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
+                  quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
+                }}
+              />
+            </div>
+            <div className="hidden sm:block">
+              <QuestPanelTabs
+                active={questPanel}
+                onChange={setQuestPanel}
+                activeClassName={selectedSkinUi.tabActiveClass}
+                badges={{
+                  weekly: weeklyBossEncounter?.rewardClaimable ? 1 : null,
+                  safety: atRiskHabits.length > 0 ? atRiskHabits.length : null,
+                  quests: displayedHabits.filter((h) => h.isActive && !h.checkedInToday).length || null,
+                }}
+              />
+            </div>
+          </>
         )}
-        {view === "quests" && (
+        {view === "quests" && !isMobileView && (
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
             <span>My Quests is your habit list. Create habits, check in daily, and keep your chain alive.</span>
             <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
@@ -1088,7 +1320,7 @@ export default function App() {
             </span>
           </div>
         )}
-        {view === "quests" && (
+        {view === "quests" && !isMobileView && (
           <div className="motion-fade-slide mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div className={`rounded-xl border px-3 py-2 ${questDashboardUi.statBase}`}>
               <div className={`text-[11px] font-semibold uppercase tracking-wide ${questDashboardUi.activeLabel}`}>Active quests</div>
@@ -1108,7 +1340,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {view === "quests" && (
+        {view === "quests" && !isMobileView && (
           <div className={`motion-fade-slide mb-4 rounded-2xl border px-4 py-3 shadow-sm ${questDashboardUi.winPanel}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1140,15 +1372,15 @@ export default function App() {
           </div>
         )}
 
-        {view === "quests" && isAuthed && loading && (
+        {view === "quests" && !isMobileView && isAuthed && loading && (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">Loading...</div>
         )}
 
-        {view === "quests" && isAuthed && error && (
+        {view === "quests" && !isMobileView && isAuthed && error && (
           <pre className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message}</pre>
         )}
 
-        {view === "quests" && questPanel === "today" && (
+        {view === "quests" && !isMobileView && questPanel === "today" && (
           <DailyQuestChain
             habits={habits}
             level={player.level}
@@ -1163,7 +1395,7 @@ export default function App() {
           />
         )}
 
-        {view === "quests" && questPanel === "weekly" && isAuthed && (
+        {view === "quests" && !isMobileView && questPanel === "weekly" && isAuthed && (
           <WeeklyBossEncounter
             encounter={weeklyBossEncounter}
             habits={habits}
@@ -1178,7 +1410,7 @@ export default function App() {
           />
         )}
 
-        {view === "quests" && questPanel === "safety" && isAuthed && (
+        {view === "quests" && !isMobileView && questPanel === "safety" && isAuthed && (
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <div className="motion-fade-slide rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
@@ -1259,7 +1491,7 @@ export default function App() {
           </div>
         )}
 
-        {view === "quests" && questPanel === "create" && (
+        {view === "quests" && !isMobileView && questPanel === "create" && (
           <div className="motion-fade-slide mb-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold text-slate-900">Create New Habit</h2>
             <p className="mt-1 text-xs text-slate-500">Every habit is treated as a quest in your arena.</p>
@@ -1310,7 +1542,7 @@ export default function App() {
           </div>
         )}
 
-        {view === "quests" && questPanel === "quests" && (
+        {view === "quests" && !isMobileView && questPanel === "quests" && (
           <>
             <div className="motion-fade-slide mb-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50 p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1348,26 +1580,27 @@ export default function App() {
               </div>
             </div>
 
-            <div className="motion-fade-slide mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+          <div className="motion-fade-slide mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            {/* Mobile-first: controls stack full-width for easier taps. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex w-full items-center gap-2 sm:w-auto">
                   <span className="text-xs font-semibold text-slate-500">Filter</span>
                   <select
                     value={filterMode}
                     onChange={(e) => setFilterMode(e.target.value)}
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700 outline-none sm:w-auto sm:py-1.5"
                   >
                     <option value="active">Active</option>
                     <option value="all">All</option>
                     <option value="pending">Pending Today</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full items-center gap-2 sm:w-auto">
                   <span className="text-xs font-semibold text-slate-500">Sort</span>
                   <select
                     value={sortMode}
                     onChange={(e) => setSortMode(e.target.value)}
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700 outline-none sm:w-auto sm:py-1.5"
                   >
                     <option value="next-up">Next Up</option>
                     <option value="streak">Current Streak</option>
@@ -1424,7 +1657,7 @@ export default function App() {
           </>
         )}
 
-        {view === "quests" && questPanel === "safety" && !isAuthed && (
+        {view === "quests" && !isMobileView && questPanel === "safety" && !isAuthed && (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
             Login to use streak freezes and recovery missions.
           </div>

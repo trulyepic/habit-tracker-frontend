@@ -254,28 +254,28 @@ export default function DailyQuestChain({
 
   return (
     <div className={`motion-fade-slide mt-4 mb-6 overflow-visible rounded-2xl border shadow-sm ${panelSkinClass}`}>
-      <div className={`relative rounded-t-2xl bg-gradient-to-r ${resolveDailyBannerTint(boss)} px-4 py-3 text-white`}>
+      <div className={`relative rounded-t-2xl bg-gradient-to-r ${resolveDailyBannerTint(boss)} px-3 py-2.5 text-white sm:px-4 sm:py-3`}>
         <div className="pointer-events-none absolute inset-0 bg-slate-950/18" />
         <div className="pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -right-10 bottom-0 h-28 w-28 rounded-full bg-cyan-200/20 blur-2xl" />
         <div className="relative">
-          <div className="mb-2.5 flex items-center justify-between gap-3">
+          <div className="mb-2 flex items-start justify-between gap-2 sm:mb-2.5 sm:gap-3">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
               Daily Boss
             </div>
-            <div className="text-shadow-strong px-1 text-right text-xs font-bold text-white">
+            <div className="text-shadow-strong px-1 text-right text-[11px] font-bold text-white sm:text-xs">
               <div>{chain.completedCount}/{chain.totalCount} mechanics broken</div>
               <div className="text-white/95">{chain.completionPct}% encounter progress</div>
             </div>
           </div>
 
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold sm:text-xs">
               {chain?.boss ? <QuestIcon icon={boss.icon} /> : <BossIcon className="h-3.5 w-3.5" />}
               {boss.name}
             </div>
-            <p className="text-shadow-strong mt-1.5 text-sm text-white">{boss.subtitle}</p>
-            <div className="mt-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
+            <p className="text-shadow-strong mt-1.5 text-xs text-white sm:text-sm">{boss.subtitle}</p>
+            <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide sm:gap-2 sm:text-[11px]">
               <span
                 className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ring-1 ${badgeRingClass} ${rarityMeta.className}`}
               >
@@ -289,6 +289,7 @@ export default function DailyQuestChain({
                 {difficultyMeta.label}
               </span>
             </div>
+            {/* Mobile-first: larger buff chips for reliable thumb taps. */}
             {boss.buffs?.length > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
                 {boss.buffs.map((buff, idx) => {
@@ -305,7 +306,7 @@ export default function DailyQuestChain({
                     <button
                       type="button"
                       onClick={() => setOpenBuffKey((prev) => (prev === buffId ? null : buffId))}
-                      className={`relative inline-flex h-8 w-8 items-center justify-center rounded-lg border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
+                      className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg border ${getBuffTone(buff.key)} ${state.chipClass} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:h-8 sm:w-8`}
                       aria-label={`${buff.name}: ${buff.description}`}
                       aria-expanded={isOpen}
                     >
@@ -315,7 +316,7 @@ export default function DailyQuestChain({
                       </span>
                     </button>
                     <div
-                      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-52 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
+                      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-52 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-slate-700 bg-slate-900/95 px-2 py-1.5 text-[11px] text-slate-100 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
                         isOpen ? "visible opacity-100" : "invisible opacity-0"
                       }`}
                     >
@@ -347,13 +348,14 @@ export default function DailyQuestChain({
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {showClaimFx && (
           <div className="daily-claim-fx mb-3 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-lime-50 to-amber-50 px-3 py-2 text-xs font-semibold text-emerald-800">
             Boss defeated. Reward chest opened: +{chain.rewardXp} XP
           </div>
         )}
 
+        {/* Mobile-first: card rail keeps hero stats readable without shrinking text. */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
           <div
             className={`motion-stagger-item w-56 shrink-0 rounded-xl border px-3 py-2 sm:w-auto ${
@@ -430,7 +432,7 @@ export default function DailyQuestChain({
         </div>
 
         {focusObjective && (
-          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-3 py-2">
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Best Next Action</div>
               <div className="text-sm font-semibold text-slate-900">{focusObjective.title}</div>
@@ -438,7 +440,7 @@ export default function DailyQuestChain({
             <button
               type="button"
               onClick={onJumpToObjective}
-              className="surface-interactive rounded-lg border border-indigo-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700"
+              className="surface-interactive w-full rounded-lg border border-indigo-300 bg-white px-2.5 py-2 text-xs font-semibold text-indigo-700 sm:w-auto sm:py-1.5"
             >
               Jump
             </button>
@@ -452,7 +454,7 @@ export default function DailyQuestChain({
               {boss.mechanics.slice(0, 2).map((line, idx) => (
                 <div
                   key={`${boss.key}-mechanic-${idx}`}
-                  className="w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 sm:w-auto sm:shrink sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
+                  className="w-[88vw] max-w-md shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 sm:w-auto sm:max-w-none sm:shrink sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
                 >
                   {line}
                 </div>
@@ -506,13 +508,14 @@ export default function DailyQuestChain({
         </div>
 
         {isAuthed && (
-          <div className="mt-4 flex items-center justify-end">
-            <div className="text-right">
+          <div className="mt-4">
+            {/* Mobile-first: claim CTA is full width and anchored in natural reading flow. */}
+            <div className="text-left sm:text-right">
               <button
                 type="button"
                 onClick={onClaimReward}
                 disabled={!canClaim}
-                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all duration-200 ease-out ${
+                className={`w-full rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ease-out sm:w-auto sm:py-1.5 ${
                   claimState === "claimed"
                     ? "bg-emerald-100 text-emerald-700"
                     : claimState === "locked"

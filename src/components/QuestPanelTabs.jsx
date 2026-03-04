@@ -13,9 +13,11 @@ export default function QuestPanelTabs({
   onChange,
   badges = {},
   activeClassName = "border-slate-900 bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm",
+  className = "mb-4",
 }) {
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+    // Mobile-first: horizontal rail prevents cramped multi-row tab buttons.
+    <div className={`${className} flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0`}>
       {ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;
@@ -25,7 +27,7 @@ export default function QuestPanelTabs({
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 ease-out ${
+            className={`shrink-0 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-all duration-200 ease-out sm:shrink sm:rounded-xl sm:px-3 sm:text-sm ${
               isActive
                 ? activeClassName
                 : "border-slate-300 bg-white text-slate-800 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"

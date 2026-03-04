@@ -1,5 +1,17 @@
 import { useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, Flame, Gift, ListChecks, Package, Palette, Shield, Snowflake, Sparkles, Trophy } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  Flame,
+  Gift,
+  ListChecks,
+  Package,
+  Palette,
+  Shield,
+  Snowflake,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
 import { PlayerBar } from "./PlayerBar";
 import TitleBanner from "./TitleBanner";
 import AchievementsScreen from "./AchievementsScreen";
@@ -100,6 +112,11 @@ export default function ProfileScreen({
   const profileTheme = PROFILE_SKIN_THEME[skinKey] ?? PROFILE_SKIN_THEME.classic;
   const [profileTab, setProfileTab] = useState("overview");
   const [inventoryTab, setInventoryTab] = useState("rewards");
+  const profileTabs = [
+    { key: "overview", label: "Overview", icon: BarChart3 },
+    { key: "inventory", label: "Inventory", icon: Package },
+    { key: "achievements", label: "Achievements", icon: Trophy },
+  ];
 
   // Keep profile metrics in one memo so all cards render from same snapshot.
   const stats = useMemo(() => {
@@ -116,7 +133,7 @@ export default function ProfileScreen({
   }, [habits, source?.achievementsUnlocked, source?.streakFreezeCharges]);
 
   return (
-    <div className="motion-fade-slide space-y-4">
+    <div className="space-y-4">
       <div className={`rounded-2xl border p-4 shadow-sm ${profileTheme.headerClass}`}>
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -130,17 +147,40 @@ export default function ProfileScreen({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-        {[
-          { key: "overview", label: "Overview", icon: BarChart3 },
-          { key: "inventory", label: "Inventory", icon: Package },
-          { key: "achievements", label: "Achievements", icon: Trophy },
-        ].map((tab) => {
+      {/* Mobile-first: sticky segmented tabs keep profile sections reachable on long scrolls. */}
+      <div className="sticky top-2 z-20 -mx-1 rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-sm backdrop-blur sm:hidden">
+        <div className="grid grid-cols-3 gap-1.5">
+          {profileTabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = profileTab === tab.key;
+            return (
+              <button
+                key={`mobile-${tab.key}`}
+                type="button"
+                onClick={() => setProfileTab(tab.key)}
+                className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
+                  active
+                    ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm"
+                    : "bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid">
+        {profileTabs.map((tab) => {
           const Icon = tab.icon;
           const active = profileTab === tab.key;
           return (
             <button
-              key={tab.key}
+              key={`desktop-${tab.key}`}
               type="button"
               onClick={() => setProfileTab(tab.key)}
               className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${

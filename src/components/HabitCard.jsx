@@ -43,7 +43,7 @@ export default function HabitCard({
   const habitRank = resolveHabitRank(habit.currentStreak);
 
   return (
-    <div className={`motion-fade-slide surface-interactive relative overflow-hidden rounded-2xl border p-5 shadow-sm ${cardSkinClass}`}>
+    <div className={`motion-fade-slide surface-interactive relative overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-5 ${cardSkinClass}`}>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-cyan-400 to-fuchsia-500" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -99,15 +99,16 @@ export default function HabitCard({
           </div>
 
           {/* Minutes are required for fair XP + time tracking. */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors duration-200 focus-within:border-sky-300 focus-within:bg-sky-50/30">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {/* Mobile-first: full-width input for easier one-handed typing. */}
+            <div className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors duration-200 focus-within:border-sky-300 focus-within:bg-sky-50/30 sm:w-auto">
               <Timer className="h-4 w-4 text-slate-500" />
               <input
                 value={minutes}
                 onChange={(e) => setMinutes(e.target.value)}
                 inputMode="numeric"
                 placeholder="Minutes (e.g. 30)"
-                className="w-36 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 sm:w-36"
               />
             </div>
 
@@ -115,7 +116,7 @@ export default function HabitCard({
               Required: log between {CHECKIN_MINUTES_MIN} and {CHECKIN_MINUTES_MAX} minutes.
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold text-slate-500">Quick check-in:</span>
             {QUICK_MINUTES.map((m) => (
               <button
@@ -123,7 +124,7 @@ export default function HabitCard({
                 type="button"
                 disabled={checkInLocked}
                 onClick={() => onCheckIn(habit.id, m)}
-                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+                className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
                 title={`Quick check-in with ${m} minutes`}
               >
                 +{m}m
@@ -136,11 +137,12 @@ export default function HabitCard({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Mobile-first: stack major actions so each tap target stays large. */}
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button
             onClick={() => onCheckIn(habit.id, minutesInt)}
             disabled={checkInDisabled}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:from-slate-800 hover:to-slate-700 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 to-slate-700 px-3 py-2 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:from-slate-800 hover:to-slate-700 hover:shadow-sm active:translate-y-0 disabled:opacity-60 sm:w-auto"
             type="button"
             title={
               habit.checkedInToday && !habit.usedFreezeToday
@@ -161,7 +163,7 @@ export default function HabitCard({
           <button
             onClick={() => onToggle(habit.id, !habit.isActive)}
             disabled={toggling}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0 disabled:opacity-60 sm:w-auto"
             type="button"
           >
             {habit.isActive ? "Deactivate" : "Activate"}
@@ -171,10 +173,10 @@ export default function HabitCard({
             <button
               onClick={() => onUseFreeze(habit.id)}
               disabled={consumingFreeze}
-              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+              className="w-full rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-sm active:translate-y-0 disabled:opacity-60 sm:w-auto"
               type="button"
             >
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center gap-1.5">
                 <Snowflake className="h-4 w-4" />
                 Use freeze
               </span>
@@ -184,7 +186,7 @@ export default function HabitCard({
           <button
             onClick={() => onDelete(habit.id)}
             disabled={deleting}
-            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-100 hover:shadow-sm active:translate-y-0 disabled:opacity-60"
+            className="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-100 hover:shadow-sm active:translate-y-0 disabled:opacity-60 sm:w-auto"
             type="button"
           >
             Delete

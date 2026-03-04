@@ -45,9 +45,9 @@ export default function ClaimCenter({
         <div
           className={`${
             showTrigger
-              ? "absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-2rem)]"
+              ? "absolute right-0 z-40 mt-2 w-[380px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-2rem)]"
               : "w-full"
-          } rounded-2xl border p-4 shadow-xl ${panelClassName}`}
+          } rounded-2xl border p-3 shadow-xl sm:p-4 ${panelClassName}`}
         >
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-semibold text-slate-900">Claimable Rewards</div>
@@ -83,7 +83,8 @@ export default function ClaimCenter({
               </div>
             )}
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
+              {/* Mobile-first: stack card header + CTA to avoid tiny buttons. */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5">
                   <Gift className="h-4 w-4 text-amber-600" />
                   Daily Quest Reward
@@ -107,7 +108,7 @@ export default function ClaimCenter({
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-sky-600" />
                   Recovery Reward
@@ -131,7 +132,7 @@ export default function ClaimCenter({
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5">
                   <Trophy className="h-4 w-4 text-fuchsia-600" />
                   New Achievements
